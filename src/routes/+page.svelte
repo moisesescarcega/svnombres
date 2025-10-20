@@ -217,23 +217,23 @@
       <button class="btn btn-lg" onclick={createFamilia} disabled={isCrearButtonDisabled}>Crear</button>
       </div>
         </div>
+        <div class="flex flex-wrap gap-2 mb-4">
+        {#each categorias as categoria}
+          <button
+            class="btn"
+            class:btn-primary={estadoFamilia === categoria}
+            class:btn-secundary={estadoFamilia !== categoria}
+            onclick={() => (estadoFamilia = categoria)}
+          >
+            {categoria}
+          </button>
+        {/each}
+        </div>
       </div>
     </div>
 
     <!-- Main content: add top margin to avoid being hidden behind the fixed header -->
-    <main class="mt-44 mb-20 overflow-auto">
-      <div class="flex flex-wrap gap-2 mb-4">
-      {#each categorias as categoria}
-        <button
-          class="btn"
-          class:btn-primary={estadoFamilia === categoria}
-          class:btn-secundary={estadoFamilia !== categoria}
-          onclick={() => (estadoFamilia = categoria)}
-        >
-          {categoria}
-        </button>
-      {/each}
-      </div>
+    <main class="mt-50 mb-20 overflow-auto">
 
       <div class="overflow-x-auto mb-4">
       <table class="table w-full">
