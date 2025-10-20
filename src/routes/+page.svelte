@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
 
   interface Familia {
+    id?: number;
     tipo: string;
     nombre: string;
     ancho: number;
@@ -44,8 +45,8 @@
     const newFamilia = {
       tipo: estadoFamilia,
       nombre: inputNombre,
-      ancho: inputAncho,
-      alto: inputAlto,
+      ancho: Number(inputAncho),
+      alto: Number(inputAlto),
       nivel_desplante: inputPosicion,
       edificio_modelo: inputOrigen,
       referencia: inputReferencia,
@@ -53,6 +54,9 @@
     };
 
     try {
+      // Debug: log payload before sending
+      console.debug('createFamilia payload:', newFamilia);
+
       const response = await fetch('http://localhost:8086/api/familias', {
         method: 'POST',
         headers: {
@@ -73,10 +77,19 @@
         inputReferencia = '';
         setFeedbackMessage('Familia creada exitosamente');
       } else {
-        setFeedbackMessage('Error al crear la familia', 'error');
+        // Try to read server error message (if any) to help debugging
+        let errText = '';
+        try {
+          errText = await response.text();
+        } catch (e) {
+          errText = `${response.status} ${response.statusText}`;
+        }
+        console.error('createFamilia failed:', response.status, response.statusText, errText);
+        setFeedbackMessage(`Error al crear la familia: ${errText}`.slice(0, 200), 'error');
       }
     } catch (error) {
-      console.error('Error creating familia:', error);
+      console.error('Error creating familia (network):', error);
+      setFeedbackMessage('Error de conexión al crear la familia', 'error');
     }
   }
 
@@ -116,7 +129,7 @@
     if (!selectedFamilia) return;
 
     try {
-      const response = await fetch(`http://localhost:8086/api/familias/${selectedFamilia.id}`, {
+      const response = await fetch(`http://localhost:8086/api/familias/${selectedFamilia!.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +139,7 @@
 
       if (response.ok) {
         const updatedFamilia = await response.json();
-        const index = familias.findIndex(f => f.id === selectedFamilia.id);
+        const index = familias.findIndex(f => f.id === selectedFamilia!.id);
         if (index !== -1) {
           familias[index] = updatedFamilia.data;
         }
@@ -169,18 +182,47 @@
 
 <div class="min-h-screen flex flex-col">
   <div class="container mx-auto p-4 flex-grow">
-    <div class="flex items-center space-x-4 mb-4">
-      <input id="inputTipo" type="text" bind:value={estadoFamilia} class="input input-bordered input-lg w-full max-w-xs" disabled />
-      <input id="inputNombre" type="text" placeholder="Nombre" bind:value={inputNombre} class="input input-bordered input-lg w-full max-w-xs" />
+    <div id="formCreacionFamilia" class="fixed top-0 left-0 right-0 z-30 bg-base-100 shadow">
+      <div class="container mx-auto p-4">
+        <div class="flex flex-wrap gap-4 mb-4">
+      <div>
+        <label class="label" for="inputNombre">Tipo</label>
+        <input id="inputTipo" type="text" bind:value={estadoFamilia} class="input input-bordered input-lg w-full max-w-xs" disabled />
+      </div>
+      <div class="form-control">
+      <label class="label" for="inputNombre">Clave</label>
+      <input id="inputNombre" type="text" placeholder="Nombre o clave" bind:value={inputNombre} class="input input-bordered input-lg w-full max-w-xs" />
+      </div>
+      <div class="form-control">
+      <label class="label" for="inputAlto">Alto</label>
       <input id="inputAlto" type="number" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-lg w-full max-w-xs" />
+      </div>
+      <div class="form-control">
+      <label class="label" for="inputAncho">Ancho</label>
       <input id="inputAncho" type="number" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-lg w-full max-w-xs" />
+      </div>
+      <div class="form-control">
+      <label class="label" for="inputPosicion">Posición</label>
       <input id="inputPosicion" type="number" placeholder="Posicion" bind:value={inputPosicion} class="input input-bordered input-lg w-full max-w-xs" />
+      </div>
+      <div class="form-control">
+      <label class="label" for="inputOrigen">Origen</label>
       <input id="inputOrigen" type="text" placeholder="Origen" bind:value={inputOrigen} class="input input-bordered input-lg w-full max-w-xs" />
+      </div>
+      <div class="form-control">
+      <label class="label" for="inputReferencia">Referencia</label>
       <input id="inputReferencia" type="text" placeholder="Referencia" bind:value={inputReferencia} class="input input-bordered input-lg w-full max-w-xs" />
+      </div>
+      <div class="flex items-end">
       <button class="btn btn-lg" onclick={createFamilia} disabled={isCrearButtonDisabled}>Crear</button>
+      </div>
+        </div>
+      </div>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4">
+    <!-- Main content: add top margin to avoid being hidden behind the fixed header -->
+    <main class="mt-44 mb-20 overflow-auto">
+      <div class="flex flex-wrap gap-2 mb-4">
       {#each categorias as categoria}
         <button
           class="btn"
@@ -191,9 +233,9 @@
           {categoria}
         </button>
       {/each}
-    </div>
+      </div>
 
-    <div class="overflow-x-auto mb-4">
+      <div class="overflow-x-auto mb-4">
       <table class="table w-full">
         <thead>
           <tr>
@@ -223,10 +265,12 @@
               <td>{familia.referencia}</td>
               <td>{familia.revisor}</td>
               <td>
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button class="btn btn-ghost btn-xs" onclick={() => openModal(familia)}>
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z" /></svg>
                 </button>
-                <button class="btn btn-ghost btn-xs" onclick={() => deleteFamilia(familia.id)}>
+                <!-- svelte-ignore a11y_consider_explicit_label -->
+                <button class="btn btn-ghost btn-xs" onclick={() => deleteFamilia(familia.id!)}>
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
               </td>
@@ -234,7 +278,8 @@
           {/each}
         </tbody>
       </table>
-    </div>
+      </div>
+    </main>
   </div>
 
   {#if showModal && selectedFamilia}
@@ -263,6 +308,10 @@
             <input type="text" id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="input input-bordered" />
           </div>
           <div class="form-control">
+            <label class="label" for="editParametros">Parámetros</label>
+            <input type="text" id="editParametros" bind:value={selectedFamilia.parametros} class="input input-bordered" />
+          </div>
+          <div class="form-control">
             <label class="label" for="editReferencia">Referencia</label>
             <input type="text" id="editReferencia" bind:value={selectedFamilia.referencia} class="input input-bordered" />
           </div>
@@ -279,7 +328,7 @@
     </dialog>
   {/if}
 
-  <footer class="footer footer-center p-4 bg-base-300 text-base-content">
+  <footer class="footer footer-center fixed bottom-0 left-0 right-0 p-4 bg-base-300 text-base-content z-40">
     {#if feedbackMessage}
       <div class="alert" class:alert-success={!feedbackMessage.includes('Error')} class:alert-error={feedbackMessage.includes('Error')}>
         <span>{feedbackMessage}</span>
