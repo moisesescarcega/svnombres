@@ -99,7 +99,7 @@
 
   onMount(async () => {
     try {
-      const response = await fetch('http://localhost:8086/api/familias');
+      const response = await fetch('https://familias.bimycp.site/api/familias');
 
       if (response.ok) {
         const data = await response.json();
@@ -162,7 +162,7 @@
     if (!confirm('¿Estás seguro de eliminar esta familia?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8086/api/familias/${id}`, {
+      const response = await fetch(`https://familias.bimycp.site/api/familias/${id}`, {
         method: 'DELETE',
       });
 
