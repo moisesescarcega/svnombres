@@ -1,0 +1,299 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+
+  interface Familia {
+    tipo: string;
+    nombre: string;
+    ancho: number;
+    alto: number;
+    nivel_desplante: string;
+    estado: string;
+    edificio_modelo: string;
+    edificio_localiza: string;
+    parametros: string;
+    referencia: string;
+    revisor: string;
+  }
+  let familias = $state<Familia[]>([]);
+  let estadoFamilia = $state('Muro');
+  let categorias = ['Muro', 'Puerta', 'Ventana', 'Louver'];
+
+  let inputNombre = $state('');
+  let inputAncho = $state(0);
+  let inputAlto = $state(0);
+  let inputPosicion = $state(0);
+  let inputOrigen = $state('');
+  let inputReferencia = $state('');
+  let showModal = $state(false);
+  let selectedFamilia = $state<Familia | null>(null);
+  let feedbackMessage = $state('');
+
+  let familiasFiltradas = $derived(
+    familias.filter((familia) => {
+      const tipoMatch = familia.tipo === estadoFamilia;
+      const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
+      return tipoMatch && nombreMatch;
+    })
+  );
+
+  let isCrearButtonDisabled = $derived(
+    !inputNombre || !inputAncho || !inputAlto || !inputOrigen
+  );
+
+  async function createFamilia() {
+    const newFamilia = {
+      tipo: estadoFamilia,
+      nombre: inputNombre,
+      ancho: inputAncho,
+      alto: inputAlto,
+      nivel_desplante: inputPosicion,
+      edificio_modelo: inputOrigen,
+      referencia: inputReferencia,
+      estado: 'Borrador', // O el estado que desees por defecto
+    };
+
+    try {
+      const response = await fetch('http://localhost:8086/api/familias', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newFamilia),
+      });
+
+      if (response.ok) {
+        const createdFamilia = await response.json();
+        familias.push(createdFamilia.data);
+        // Reset input fields
+        inputNombre = '';
+        inputAncho = 0;
+        inputAlto = 0;
+        inputPosicion = 0;
+        inputOrigen = '';
+        inputReferencia = '';
+        setFeedbackMessage('Familia creada exitosamente');
+      } else {
+        setFeedbackMessage('Error al crear la familia', 'error');
+      }
+    } catch (error) {
+      console.error('Error creating familia:', error);
+    }
+  }
+
+  onMount(async () => {
+    try {
+      const response = await fetch('http://localhost:8086/api/familias');
+
+      if (response.ok) {
+        const data = await response.json();
+        familias = data.data;
+      } else {
+        console.error('Error fetching data:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  });
+
+  function formatNumber(num: number | string) {
+    const number = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(number)) {
+      return '';
+    }
+    if (number % 1 === 0) {
+      return number.toFixed(0);
+    } else {
+      return number.toFixed(1);
+    }
+  }
+
+  function openModal(familia: Familia) {
+    selectedFamilia = { ...familia };
+    showModal = true;
+  }
+
+  async function updateFamilia() {
+    if (!selectedFamilia) return;
+
+    try {
+      const response = await fetch(`http://localhost:8086/api/familias/${selectedFamilia.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(selectedFamilia),
+      });
+
+      if (response.ok) {
+        const updatedFamilia = await response.json();
+        const index = familias.findIndex(f => f.id === selectedFamilia.id);
+        if (index !== -1) {
+          familias[index] = updatedFamilia.data;
+        }
+        showModal = false;
+        setFeedbackMessage('Familia actualizada exitosamente');
+      } else {
+        setFeedbackMessage('Error al actualizar la familia', 'error');
+      }
+    } catch (error) {
+      setFeedbackMessage('Error de conexión al actualizar', 'error');
+    }
+  }
+
+  async function deleteFamilia(id: number) {
+    if (!confirm('¿Estás seguro de eliminar esta familia?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:8086/api/familias/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        familias = familias.filter(f => f.id !== id);
+        setFeedbackMessage('Familia eliminada exitosamente');
+      } else {
+        setFeedbackMessage('Error al eliminar la familia', 'error');
+      }
+    } catch (error) {
+      setFeedbackMessage('Error de conexión al eliminar', 'error');
+    }
+  }
+
+  function setFeedbackMessage(message: string, type: 'success' | 'error' = 'success') {
+    feedbackMessage = message;
+    setTimeout(() => {
+      feedbackMessage = '';
+    }, 3000);
+  }
+</script>
+
+<div class="min-h-screen flex flex-col">
+  <div class="container mx-auto p-4 flex-grow">
+    <div class="flex items-center space-x-4 mb-4">
+      <input id="inputTipo" type="text" bind:value={estadoFamilia} class="input input-bordered input-lg w-full max-w-xs" disabled />
+      <input id="inputNombre" type="text" placeholder="Nombre" bind:value={inputNombre} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputAlto" type="number" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputAncho" type="number" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputPosicion" type="number" placeholder="Posicion" bind:value={inputPosicion} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputOrigen" type="text" placeholder="Origen" bind:value={inputOrigen} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputReferencia" type="text" placeholder="Referencia" bind:value={inputReferencia} class="input input-bordered input-lg w-full max-w-xs" />
+      <button class="btn btn-lg" onclick={createFamilia} disabled={isCrearButtonDisabled}>Crear</button>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4">
+      {#each categorias as categoria}
+        <button
+          class="btn"
+          class:btn-primary={estadoFamilia === categoria}
+          class:btn-secundary={estadoFamilia !== categoria}
+          onclick={() => (estadoFamilia = categoria)}
+        >
+          {categoria}
+        </button>
+      {/each}
+    </div>
+
+    <div class="overflow-x-auto mb-4">
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th>Familia/Tipo</th>
+            <th>Ancho</th>
+            <th>Alto</th>
+            <th>Posicion</th>
+            <th>Estado</th>
+            <th>Origen</th>
+            <th>Ubicacion</th>
+            <th>Parametros</th>
+                      <th>Referencia</th>
+                      <th>Revisor</th>
+                      <th>Acciones</th>          </tr>
+        </thead>
+        <tbody>
+          {#each familiasFiltradas as familia}
+            <tr>
+              <td>{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}x{formatNumber(familia.alto)}cm</td>
+              <td>{familia.ancho}</td>
+              <td>{familia.alto}</td>
+              <td>{familia.nivel_desplante}</td>
+              <td>{familia.estado}</td>
+              <td>{familia.edificio_modelo}</td>
+              <td>{familia.edificio_localiza}</td>
+              <td>{familia.parametros}</td>
+              <td>{familia.referencia}</td>
+              <td>{familia.revisor}</td>
+              <td>
+                <button class="btn btn-ghost btn-xs" onclick={() => openModal(familia)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z" /></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs" onclick={() => deleteFamilia(familia.id)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {#if showModal && selectedFamilia}
+    <dialog class="modal modal-open">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg">Editar Familia</h3>
+        <form onsubmit={(e) => { e.preventDefault(); updateFamilia(); }}>
+          <div class="form-control">
+            <label class="label" for="editNombre">Nombre</label>
+            <input type="text" id="editNombre" bind:value={selectedFamilia.nombre} class="input input-bordered" />
+          </div>
+          <div class="form-control">
+            <label class="label" for="editAncho">Ancho</label>
+            <input type="number" id="editAncho" bind:value={selectedFamilia.ancho} class="input input-bordered" />
+          </div>
+          <div class="form-control">
+            <label class="label" for="editAlto">Alto</label>
+            <input type="number" id="editAlto" bind:value={selectedFamilia.alto} class="input input-bordered" />
+          </div>
+          <div class="form-control">
+            <label class="label" for="editPosicion">Posicion</label>
+            <input type="number" id="editPosicion" bind:value={selectedFamilia.nivel_desplante} class="input input-bordered" />
+          </div>
+          <div class="form-control">
+            <label class="label" for="editOrigen">Origen</label>
+            <input type="text" id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="input input-bordered" />
+          </div>
+          <div class="form-control">
+            <label class="label" for="editReferencia">Referencia</label>
+            <input type="text" id="editReferencia" bind:value={selectedFamilia.referencia} class="input input-bordered" />
+          </div>
+          <div class="form-control">
+            <label class="label" for="editRevisor">Revisor</label>
+            <input type="text" id="editRevisor" bind:value={selectedFamilia.revisor} class="input input-bordered" />
+          </div>
+          <div class="modal-action">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <button type="button" class="btn" onclick={() => showModal = false}>Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  {/if}
+
+  <footer class="footer footer-center p-4 bg-base-300 text-base-content">
+    {#if feedbackMessage}
+      <div class="alert" class:alert-success={!feedbackMessage.includes('Error')} class:alert-error={feedbackMessage.includes('Error')}>
+        <span>{feedbackMessage}</span>
+      </div>
+    {/if}
+    <div>
+      <p>Nombres de familias para elementos en Revit - Proyecto Yecapixtla</p>
+    </div>
+    <div class="flex mt-4">
+      <span class="mr-2">Tema:</span>
+      <select class="select select-bordered select-sm" onchange={(e) => document.documentElement.setAttribute('data-theme', e.currentTarget.value)}>
+        <option value="dracula">Oscuro</option>
+        <option value="retro">Claro</option>
+      </select>
+    </div>
+  </footer>
+</div>
