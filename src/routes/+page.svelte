@@ -61,7 +61,7 @@
       // Debug: log payload before sending
       console.debug('createFamilia payload:', newFamilia);
 
-      const response = await fetch('http://localhost:8086/api/familias', {
+      const response = await fetch('https://familias.bimycp.site/api/familias', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
