@@ -20,8 +20,8 @@
   let categorias = ['Muro', 'Puerta', 'Ventana', 'Louver'];
 
   let inputNombre = $state('');
-  let inputAncho = $state(0);
-  let inputAlto = $state(0);
+  let inputAncho = $state('');
+  let inputAlto = $state('');
   let inputPosicion = $state(0);
   let inputOrigen = $state('');
   let inputReferencia = $state('');
@@ -33,12 +33,16 @@
     familias.filter((familia) => {
       const tipoMatch = familia.tipo === estadoFamilia;
       const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
-      return tipoMatch && nombreMatch;
+      const anchoFilterActive = String(inputAncho) !== '';
+      const altoFilterActive = String(inputAlto) !== '';
+      const anchoMatch = anchoFilterActive ? formatNumber(familia.ancho) === formatNumber(inputAncho) : true;
+      const altoMatch = altoFilterActive ? formatNumber(familia.alto) === formatNumber(inputAlto) : true;
+      return tipoMatch && nombreMatch && anchoMatch && altoMatch;
     })
   );
 
   let isCrearButtonDisabled = $derived(
-    !inputNombre || !inputAncho || !inputAlto || !inputOrigen
+    !inputNombre || String(inputAncho) === '' || String(inputAlto) === '' || !inputOrigen
   );
 
   async function createFamilia() {
@@ -69,9 +73,9 @@
         const createdFamilia = await response.json();
         familias.push(createdFamilia.data);
         // Reset input fields
-        inputNombre = '';
-        inputAncho = 0;
-        inputAlto = 0;
+  inputNombre = '';
+  inputAncho = '';
+  inputAlto = '';
         inputPosicion = 0;
         inputOrigen = '';
         inputReferencia = '';
@@ -109,11 +113,12 @@
   });
 
   function formatNumber(num: number | string) {
+    if (num === null || num === undefined || String(num).trim() === '') return '';
     const number = typeof num === 'string' ? parseFloat(num) : num;
-    if (isNaN(number)) {
+    if (!isFinite(number) || isNaN(number)) {
       return '';
     }
-    if (number % 1 === 0) {
+    if (Math.abs(number % 1) < Number.EPSILON) {
       return number.toFixed(0);
     } else {
       return number.toFixed(1);
@@ -194,12 +199,12 @@
       <input id="inputNombre" type="text" placeholder="Nombre o clave" bind:value={inputNombre} class="input input-bordered input-lg w-full max-w-xs" />
       </div>
       <div class="form-control">
-      <label class="label" for="inputAlto">Alto</label>
-      <input id="inputAlto" type="number" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-lg w-full max-w-xs" />
+        <label class="label" for="inputAncho">Ancho</label>
+        <input id="inputAncho" type="number" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-lg w-full max-w-xs" />
       </div>
       <div class="form-control">
-      <label class="label" for="inputAncho">Ancho</label>
-      <input id="inputAncho" type="number" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-lg w-full max-w-xs" />
+      <label class="label" for="inputAlto">Alto</label>
+      <input id="inputAlto" type="number" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-lg w-full max-w-xs" />
       </div>
       <div class="form-control">
       <label class="label" for="inputPosicion">Posición</label>
