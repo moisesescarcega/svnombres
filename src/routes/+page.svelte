@@ -238,12 +238,13 @@
     </div>
 
     <!-- Main content: add top margin to avoid being hidden behind the fixed header -->
-    <main class="mt-50 mb-20 overflow-auto">
+    <main class="mt-62 mb-20 z-999">
 
-      <div class="overflow-x-auto mb-4">
-      <table class="table w-full">
+      <!-- Table container: fixed max height, scrollable body; header will be sticky -->
+      <div class="overflow-auto mb-4 max-h-[calc(100vh-6rem-4rem)]"> 
+        <table class="table w-full">
         <thead>
-          <tr>
+          <tr class="sticky top-0 bg-base-200 z-10">
             <th>Familia/Tipo</th>
             <th>Ancho</th>
             <th>Alto</th>
