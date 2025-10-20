@@ -134,7 +134,7 @@
     if (!selectedFamilia) return;
 
     try {
-      const response = await fetch(`http://localhost:8086/api/familias/${selectedFamilia!.id}`, {
+      const response = await fetch(`https://familias.bimycp.site/api/familias/${selectedFamilia!.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
