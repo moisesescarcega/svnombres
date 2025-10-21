@@ -128,11 +128,15 @@
     if (!isFinite(number) || isNaN(number)) {
       return '';
     }
-    if (Math.abs(number % 1) < Number.EPSILON) {
+    // If the numeric value is exactly zero, present as empty string
+    if (number === 0) return '';
+
+    // Treat as integer when it's mathematically an integer (avoid floating precision issues)
+    if (Number.isFinite(number) && Math.round(number) === number) {
       return number.toFixed(0);
-    } else {
-      return number.toFixed(1);
     }
+    // Otherwise round to one decimal
+    return Number(number.toFixed(1)).toString();
   }
 
   function openModal(familia: Familia) {
@@ -210,11 +214,11 @@
       </div>
       <div class="form-control">
         <label class="label" for="inputAncho">Ancho</label>
-        <input id="inputAncho" type="number" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-lg w-full max-w-xs" />
+        <input id="inputAncho" type="number" step="0.1" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-lg w-full max-w-xs" />
       </div>
       <div class="form-control">
       <label class="label" for="inputAlto">Alto</label>
-      <input id="inputAlto" type="number" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputAlto" type="number" step="0.1" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-lg w-full max-w-xs" />
       </div>
       <div class="form-control">
       <label class="label" for="inputPosicion">Posición</label>
@@ -272,8 +276,8 @@
             {#each familiasFiltradas as familia}
               <tr>
                 <td>{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}x{formatNumber(familia.alto)}cm</td>
-                <td>{familia.ancho}</td>
-                <td>{familia.alto}</td>
+                <td>{formatNumber(familia.ancho)}</td>
+                <td>{formatNumber(familia.alto)}</td>
                 <td>{familia.nivel_desplante}</td>
                 <td>{familia.estado}</td>
                 <td>{familia.edificio_modelo}</td>
@@ -310,11 +314,11 @@
           </div>
           <div class="form-control">
             <label class="label" for="editAncho">Ancho</label>
-            <input type="number" id="editAncho" bind:value={selectedFamilia.ancho} class="input input-bordered" />
+            <input type="number" step="0.1" id="editAncho" bind:value={selectedFamilia.ancho} class="input input-bordered" />
           </div>
           <div class="form-control">
             <label class="label" for="editAlto">Alto</label>
-            <input type="number" id="editAlto" bind:value={selectedFamilia.alto} class="input input-bordered" />
+            <input type="number" step="0.1" id="editAlto" bind:value={selectedFamilia.alto} class="input input-bordered" />
           </div>
           <div class="form-control">
             <label class="label" for="editPosicion">Posicion</label>
