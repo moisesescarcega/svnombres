@@ -46,6 +46,8 @@
   );
 
   async function createFamilia() {
+    // const nombrePascal = toPascalCase(inputNombre);
+
     const newFamilia = {
       tipo: estadoFamilia,
       nombre: inputNombre,
@@ -78,9 +80,9 @@
         };
         familias.push(normalized);
         // Reset input fields
-  inputNombre = '';
-  inputAncho = '';
-  inputAlto = '';
+        inputNombre = '';
+        inputAncho = '';
+        inputAlto = '';
         inputPosicion = 0;
         inputOrigen = '';
         inputReferencia = '';
@@ -139,6 +141,44 @@
     return Number(number.toFixed(1)).toString();
   }
 
+  function toPascalCase(value: string) {
+    if (!value) return '';
+    // Normalize and remove diacritics (á -> a, ñ -> n, etc.)
+    const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Replace any non-alphanumeric characters with a space
+    const cleaned = normalized.replace(/[^0-9A-Za-z]+/g, ' ');
+    // Split into words, capitalize each, join without separator
+    return cleaned
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join('');
+  }
+
+  async function copyFamiliaToClipboard(familia: Familia) {
+    const label = `${familia.tipo}-${familia.nombre}-${formatNumber(familia.ancho)}x${formatNumber(familia.alto)}cm`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(label);
+      } else {
+        // Fallback para navegadores más antiguos
+        const textarea = document.createElement('textarea');
+        textarea.value = label;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+      }
+      setFeedbackMessage(`Copiado al portapapeles: ${label}`);
+    } catch (err) {
+      console.error('Error copiando al portapapeles:', err);
+      setFeedbackMessage('Error al copiar al portapapeles', 'error');
+    }
+  }
+
   function openModal(familia: Familia) {
     selectedFamilia = { ...familia };
     showModal = true;
@@ -159,6 +199,7 @@
 
       // Build payload and normalize numeric fields to proper types
       const payload: any = { ...selectedFamilia };
+      payload.nombre = toPascalCase(String(payload.nombre ?? ''));
       if (payload.ancho !== null && payload.ancho !== undefined && payload.ancho !== '') {
         payload.ancho = typeof payload.ancho === 'string' ? parseFloat(payload.ancho) : payload.ancho;
       }
@@ -233,12 +274,12 @@
       <div class="container mx-auto p-4">
         <div class="flex flex-wrap gap-4 mb-4">
       <div>
-        <label class="label" for="inputNombre">Tipo</label>
+        <label class="label" for="inputTipo">Tipo</label>
         <input id="inputTipo" type="text" bind:value={estadoFamilia} class="input input-bordered input-lg w-full max-w-xs" disabled />
       </div>
       <div class="form-control">
-      <label class="label" for="inputNombre">Clave</label>
-      <input id="inputNombre" type="text" placeholder="Nombre o clave" bind:value={inputNombre} class="input input-bordered input-lg w-full max-w-xs" />
+      <label class="label" for="inputNombre">Nombre de Clave</label>
+      <input id="inputNombre" type="text" bind:value={inputNombre} onblur={() => inputNombre = toPascalCase(inputNombre)} class="input input-bordered input-lg w-full max-w-xs" />
       </div>
       <div class="form-control">
         <label class="label" for="inputAncho">Ancho</label>
@@ -287,7 +328,7 @@
         <table class="table w-full">
           <thead>
             <tr>
-              <th class="top-0 bg-base-200 z-10 w-1/4 text-left">Familia/Tipo</th>
+              <th class="top-0 bg-base-200 z-10 w-1/4 text-left">Familia/Tipo (Click para copiar)</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">Ancho</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">Alto</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">Posicion</th>
@@ -303,7 +344,11 @@
           <tbody>
             {#each familiasFiltradas as familia}
               <tr>
-                <td>{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}x{formatNumber(familia.alto)}cm</td>
+                <td
+                  class="cursor-pointer"
+                  title="Click para copiar"
+                  onclick={() => copyFamiliaToClipboard(familia)}
+                >{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}x{formatNumber(familia.alto)}cm</td>
                 <td>{formatNumber(familia.ancho)}</td>
                 <td>{formatNumber(familia.alto)}</td>
                 <td>{familia.nivel_desplante}</td>
