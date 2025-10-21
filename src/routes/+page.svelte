@@ -33,8 +33,8 @@
     familias.filter((familia) => {
       const tipoMatch = familia.tipo === estadoFamilia;
       const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
-  const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
-  const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
+      const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
+      const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
       const anchoMatch = anchoFilterActive ? formatNumber(familia.ancho) === formatNumber(inputAncho) : true;
       const altoMatch = altoFilterActive ? formatNumber(familia.alto) === formatNumber(inputAlto) : true;
       return tipoMatch && nombreMatch && anchoMatch && altoMatch;
@@ -42,7 +42,7 @@
   );
 
   let isCrearButtonDisabled = $derived(
-    !inputNombre || (inputAncho == null || String(inputAncho).trim() === '') || !inputOrigen
+    !inputNombre || (inputAncho == null || String(inputAncho).trim() === '') || !inputOrigen || (familiasFiltradas && familiasFiltradas.length > 0 )
   );
 
   async function createFamilia() {
