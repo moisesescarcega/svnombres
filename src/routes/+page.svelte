@@ -148,12 +148,32 @@
     if (!selectedFamilia) return;
 
     try {
+      // Allowed enum values (must match backend ENUM)
+      const allowedEstados = ['Borrador', 'En revision', 'Aprobada', 'Desactualizada'];
+
+      if (!allowedEstados.includes(selectedFamilia.estado)) {
+        setFeedbackMessage(`Estado inválido: ${selectedFamilia.estado}`, 'error');
+        console.error('Estado inválido antes de enviar update:', selectedFamilia.estado);
+        return;
+      }
+
+      // Build payload and normalize numeric fields to proper types
+      const payload: any = { ...selectedFamilia };
+      if (payload.ancho !== null && payload.ancho !== undefined && payload.ancho !== '') {
+        payload.ancho = typeof payload.ancho === 'string' ? parseFloat(payload.ancho) : payload.ancho;
+      }
+      if (payload.alto !== null && payload.alto !== undefined && payload.alto !== '') {
+        payload.alto = typeof payload.alto === 'string' ? parseFloat(payload.alto) : payload.alto;
+      }
+
+      console.debug('updateFamilia payload:', payload);
+
       const response = await fetch(`https://familias.bimycp.site/api/familias/${selectedFamilia!.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(selectedFamilia),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -165,7 +185,15 @@
         showModal = false;
         setFeedbackMessage('Familia actualizada exitosamente');
       } else {
-        setFeedbackMessage('Error al actualizar la familia', 'error');
+        // Read response body to show details of 400
+        let errText = '';
+        try {
+          errText = await response.text();
+        } catch (e) {
+          errText = `${response.status} ${response.statusText}`;
+        }
+        console.error('updateFamilia failed:', response.status, response.statusText, errText);
+        setFeedbackMessage(`Error al actualizar la familia: ${errText}`.slice(0, 300), 'error');
       }
     } catch (error) {
       setFeedbackMessage('Error de conexión al actualizar', 'error');
@@ -308,38 +336,58 @@
       <div class="modal-box">
         <h3 class="font-bold text-lg">Editar Familia</h3>
         <form onsubmit={(e) => { e.preventDefault(); updateFamilia(); }}>
-          <div class="form-control">
-            <label class="label" for="editNombre">Nombre</label>
-            <input type="text" id="editNombre" bind:value={selectedFamilia.nombre} class="input input-bordered" />
+          <div class="space-y-4">
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editNombre">Nombre</label>
+              <input type="text" id="editNombre" bind:value={selectedFamilia.nombre} class="input input-bordered w-2/3" />
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editEstado">Estado</label>
+              <select id="editEstado" bind:value={selectedFamilia.estado} class="select select-bordered w-2/3">
+                <option value="Borrador">Borrador</option>
+                <option value="En revision">En revisión</option>
+                <option value="Aprobada">Aprobada</option>
+                <option value="Desactualizada">Desactualizada</option>
+              </select>
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editAncho">Ancho</label>
+              <input type="number" step="0.1" id="editAncho" bind:value={selectedFamilia.ancho} class="input input-bordered w-2/3" />
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editAlto">Alto</label>
+              <input type="number" step="0.1" id="editAlto" bind:value={selectedFamilia.alto} class="input input-bordered w-2/3" />
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editPosicion">Posicion</label>
+              <input type="number" id="editPosicion" bind:value={selectedFamilia.nivel_desplante} class="input input-bordered w-2/3" />
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editOrigen">Origen</label>
+              <input type="text" id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="input input-bordered w-2/3" />
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editParametros">Parámetros</label>
+              <input type="text" id="editParametros" bind:value={selectedFamilia.parametros} class="input input-bordered w-2/3" />
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editReferencia">Referencia</label>
+              <input type="text" id="editReferencia" bind:value={selectedFamilia.referencia} class="input input-bordered w-2/3" />
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editRevisor">Revisor</label>
+              <input type="text" id="editRevisor" bind:value={selectedFamilia.revisor} class="input input-bordered w-2/3" />
+            </div>
           </div>
-          <div class="form-control">
-            <label class="label" for="editAncho">Ancho</label>
-            <input type="number" step="0.1" id="editAncho" bind:value={selectedFamilia.ancho} class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="label" for="editAlto">Alto</label>
-            <input type="number" step="0.1" id="editAlto" bind:value={selectedFamilia.alto} class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="label" for="editPosicion">Posicion</label>
-            <input type="number" id="editPosicion" bind:value={selectedFamilia.nivel_desplante} class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="label" for="editOrigen">Origen</label>
-            <input type="text" id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="label" for="editParametros">Parámetros</label>
-            <input type="text" id="editParametros" bind:value={selectedFamilia.parametros} class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="label" for="editReferencia">Referencia</label>
-            <input type="text" id="editReferencia" bind:value={selectedFamilia.referencia} class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="label" for="editRevisor">Revisor</label>
-            <input type="text" id="editRevisor" bind:value={selectedFamilia.revisor} class="input input-bordered" />
-          </div>
+
           <div class="modal-action">
             <button type="submit" class="btn btn-primary">Guardar</button>
             <button type="button" class="btn" onclick={() => showModal = false}>Cancelar</button>
