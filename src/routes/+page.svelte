@@ -33,8 +33,8 @@
     familias.filter((familia) => {
       const tipoMatch = familia.tipo === estadoFamilia;
       const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
-      const anchoFilterActive = String(inputAncho) !== '';
-      const altoFilterActive = String(inputAlto) !== '';
+  const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
+  const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
       const anchoMatch = anchoFilterActive ? formatNumber(familia.ancho) === formatNumber(inputAncho) : true;
       const altoMatch = altoFilterActive ? formatNumber(familia.alto) === formatNumber(inputAlto) : true;
       return tipoMatch && nombreMatch && anchoMatch && altoMatch;
@@ -42,7 +42,7 @@
   );
 
   let isCrearButtonDisabled = $derived(
-    !inputNombre || String(inputAncho) === '' || String(inputAlto) === '' || !inputOrigen
+    !inputNombre || (inputAncho == null || String(inputAncho).trim() === '') || !inputOrigen
   );
 
   async function createFamilia() {
@@ -71,7 +71,12 @@
 
       if (response.ok) {
         const createdFamilia = await response.json();
-        familias.push(createdFamilia.data);
+        const normalized = {
+          ...createdFamilia.data,
+          ancho: typeof createdFamilia.data.ancho === 'string' ? parseFloat(createdFamilia.data.ancho) : createdFamilia.data.ancho,
+          alto: typeof createdFamilia.data.alto === 'string' ? parseFloat(createdFamilia.data.alto) : createdFamilia.data.alto,
+        };
+        familias.push(normalized);
         // Reset input fields
   inputNombre = '';
   inputAncho = '';
@@ -103,7 +108,12 @@
 
       if (response.ok) {
         const data = await response.json();
-        familias = data.data;
+        // Normalize ancho/alto to numbers to keep consistent types
+        familias = data.data.map((f: any) => ({
+          ...f,
+          ancho: typeof f.ancho === 'string' ? parseFloat(f.ancho) : f.ancho,
+          alto: typeof f.alto === 'string' ? parseFloat(f.alto) : f.alto,
+        }));
       } else {
         console.error('Error fetching data:', response.statusText);
       }
@@ -187,7 +197,7 @@
 
 <div class="min-h-screen flex flex-col">
   <div class="container mx-auto p-4 flex-grow">
-    <div id="formCreacionFamilia" class="fixed top-0 left-0 right-0 z-30 bg-base-100 shadow">
+    <div id="formCreacionFamilia" class="top-0 left-0 right-0 z-30 bg-base-100 shadow">
       <div class="container mx-auto p-4">
         <div class="flex flex-wrap gap-4 mb-4">
       <div>
@@ -238,52 +248,53 @@
     </div>
 
     <!-- Main content: add top margin to avoid being hidden behind the fixed header -->
-    <main class="mt-62 mb-20 z-999">
+    <main class="mb-20 z-999">
 
-      <!-- Table container: fixed max height, scrollable body; header will be sticky -->
+      <!-- Table container: fixed max height, scrollable body-->
       <div class="overflow-auto mb-4 max-h-[calc(100vh-6rem-4rem)]"> 
         <table class="table w-full">
-        <thead>
-          <tr class="sticky top-0 bg-base-200 z-10">
-            <th>Familia/Tipo</th>
-            <th>Ancho</th>
-            <th>Alto</th>
-            <th>Posicion</th>
-            <th>Estado</th>
-            <th>Origen</th>
-            <th>Ubicacion</th>
-            <th>Parametros</th>
-                      <th>Referencia</th>
-                      <th>Revisor</th>
-                      <th>Acciones</th>          </tr>
-        </thead>
-        <tbody>
-          {#each familiasFiltradas as familia}
+          <thead>
             <tr>
-              <td>{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}x{formatNumber(familia.alto)}cm</td>
-              <td>{familia.ancho}</td>
-              <td>{familia.alto}</td>
-              <td>{familia.nivel_desplante}</td>
-              <td>{familia.estado}</td>
-              <td>{familia.edificio_modelo}</td>
-              <td>{familia.edificio_localiza}</td>
-              <td>{familia.parametros}</td>
-              <td>{familia.referencia}</td>
-              <td>{familia.revisor}</td>
-              <td>
-                <!-- svelte-ignore a11y_consider_explicit_label -->
-                <button class="btn btn-ghost btn-xs" onclick={() => openModal(familia)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z" /></svg>
-                </button>
-                <!-- svelte-ignore a11y_consider_explicit_label -->
-                <button class="btn btn-ghost btn-xs" onclick={() => deleteFamilia(familia.id!)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-              </td>
+              <th class="top-0 bg-base-200 z-10 w-1/4 text-left">Familia/Tipo</th>
+              <th class="top-0 bg-base-200 z-10 w-12 text-left">Ancho</th>
+              <th class="top-0 bg-base-200 z-10 w-12 text-left">Alto</th>
+              <th class="top-0 bg-base-200 z-10 w-12 text-left">Posicion</th>
+              <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Estado</th>
+              <th class="top-0 bg-base-200 z-10 w-24 text-left">Origen</th>
+              <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Ubicacion</th>
+              <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Parametros</th>
+              <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Referencia</th>
+              <th class="top-0 bg-base-200 z-10 w-24 text-left">Revisor</th>
+              <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Acciones</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each familiasFiltradas as familia}
+              <tr>
+                <td>{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}x{formatNumber(familia.alto)}cm</td>
+                <td>{familia.ancho}</td>
+                <td>{familia.alto}</td>
+                <td>{familia.nivel_desplante}</td>
+                <td>{familia.estado}</td>
+                <td>{familia.edificio_modelo}</td>
+                <td>{familia.edificio_localiza}</td>
+                <td>{familia.parametros}</td>
+                <td>{familia.referencia}</td>
+                <td>{familia.revisor}</td>
+                <td>
+                  <!-- svelte-ignore a11y_consider_explicit_label -->
+                  <button class="btn btn-ghost btn-xs" onclick={() => openModal(familia)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z" /></svg>
+                  </button>
+                  <!-- svelte-ignore a11y_consider_explicit_label -->
+                  <button class="btn btn-ghost btn-xs" onclick={() => deleteFamilia(familia.id!)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
     </main>
   </div>
