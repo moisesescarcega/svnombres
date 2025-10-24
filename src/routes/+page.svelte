@@ -153,11 +153,12 @@
       .split(/\s+/)
       .filter(Boolean)
       .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join('');
+      .join('_');
   }
 
   async function copyFamiliaToClipboard(familia: Familia) {
-    const label = `${familia.tipo}-${familia.nombre}-${formatNumber(familia.ancho)}x${formatNumber(familia.alto)}cm`;
+    const altoPart = formatNumber(familia.alto) ? `x${formatNumber(familia.alto)}cm` : 'cm';
+    const label = `${familia.tipo}-${familia.nombre}-${formatNumber(familia.ancho)}${altoPart}`;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(label);
@@ -275,31 +276,40 @@
         <div class="flex flex-wrap gap-4 mb-4">
       <div>
         <label class="label" for="inputTipo">Tipo</label>
-        <input id="inputTipo" type="text" bind:value={estadoFamilia} class="input input-bordered input-lg w-full max-w-xs" disabled />
+        <input id="inputTipo" type="text" bind:value={estadoFamilia} class="input input-bordered input-md w-full max-w-xs" disabled />
       </div>
       <div class="form-control">
       <label class="label" for="inputNombre">Nombre de Clave</label>
-      <input id="inputNombre" type="text" bind:value={inputNombre} onblur={() => inputNombre = toPascalCase(inputNombre)} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputNombre" type="text" bind:value={inputNombre} onblur={() => inputNombre = toPascalCase(inputNombre)} class="input input-bordered input-md w-full max-w-xs" />
       </div>
       <div class="form-control">
         <label class="label" for="inputAncho">Ancho</label>
-        <input id="inputAncho" type="number" step="0.1" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-lg w-full max-w-xs" />
+        <input id="inputAncho" type="number" step="0.1" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-md w-full max-w-xs" />
       </div>
       <div class="form-control">
       <label class="label" for="inputAlto">Alto</label>
-      <input id="inputAlto" type="number" step="0.1" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputAlto" type="number" step="0.1" placeholder="Alto" bind:value={inputAlto} class="input input-bordered input-md w-full max-w-xs" />
       </div>
       <div class="form-control">
-      <label class="label" for="inputPosicion">Posición</label>
-      <input id="inputPosicion" type="number" placeholder="Posicion" bind:value={inputPosicion} class="input input-bordered input-lg w-full max-w-xs" />
+      <label class="label" for="inputPosicion">Nivel/Posición</label>
+      <input id="inputPosicion" type="number" placeholder="Posicion" bind:value={inputPosicion} class="input input-bordered input-md w-full max-w-xs" />
       </div>
       <div class="form-control">
       <label class="label" for="inputOrigen">Origen</label>
-      <input id="inputOrigen" type="text" placeholder="Origen" bind:value={inputOrigen} class="input input-bordered input-lg w-full max-w-xs" />
+      <select id="inputOrigen" bind:value={inputOrigen} class="select select-bordered input-md w-full max-w-xs">
+        <option value="">Selecciona...</option>
+        <option value="EA">EA</option>
+        <option value="EB">EB</option>
+        <option value="EC">EC</option>
+        <option value="ED">ED</option>
+        <option value="EE">EE</option>
+        <option value="EVP">EVP</option>
+        <option value="EXT">EXT</option>
+      </select>
       </div>
       <div class="form-control">
       <label class="label" for="inputReferencia">Referencia</label>
-      <input id="inputReferencia" type="text" placeholder="Referencia" bind:value={inputReferencia} class="input input-bordered input-lg w-full max-w-xs" />
+      <input id="inputReferencia" type="text" placeholder="Referencia" bind:value={inputReferencia} class="input input-bordered input-md w-full max-w-xs" />
       </div>
       <div class="flex items-end">
       <button class="btn btn-lg" onclick={createFamilia} disabled={isCrearButtonDisabled}>Crear</button>
@@ -331,7 +341,7 @@
               <th class="top-0 bg-base-200 z-10 w-1/4 text-left">Familia/Tipo (Click para copiar)</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">Ancho</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">Alto</th>
-              <th class="top-0 bg-base-200 z-10 w-12 text-left">Posicion</th>
+              <th class="top-0 bg-base-200 z-10 w-12 text-left">Nivel</th>
               <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Estado</th>
               <th class="top-0 bg-base-200 z-10 w-24 text-left">Origen</th>
               <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Ubicacion</th>
@@ -348,7 +358,7 @@
                   class="cursor-pointer"
                   title="Click para copiar"
                   onclick={() => copyFamiliaToClipboard(familia)}
-                >{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}x{formatNumber(familia.alto)}cm</td>
+                >{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}{formatNumber(familia.alto) ? `x${formatNumber(familia.alto)}cm` : `cm`}</td>
                 <td>{formatNumber(familia.ancho)}</td>
                 <td>{formatNumber(familia.alto)}</td>
                 <td>{familia.nivel_desplante}</td>
@@ -408,13 +418,27 @@
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
-              <label class="label w-1/3 text-left" for="editPosicion">Posicion</label>
+              <label class="label w-1/3 text-left" for="editPosicion">Nivel/Posición</label>
               <input type="number" id="editPosicion" bind:value={selectedFamilia.nivel_desplante} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editOrigen">Origen</label>
-              <input type="text" id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="input input-bordered w-2/3" />
+              <select id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="select select-bordered w-2/3">
+                <option value="">Selecciona...</option>
+                <option value="EA">EA</option>
+                <option value="EB">EB</option>
+                <option value="EC">EC</option>
+                <option value="ED">ED</option>
+                <option value="EE">EE</option>
+                <option value="EVP">EVP</option>
+                <option value="EXT">EXT</option>
+              </select>
+            </div>
+
+            <div class="form-control flex items-center justify-between gap-4">
+              <label class="label w-1/3 text-left" for="editLocaliza">Ubicación</label>
+              <input type="text" id="editLocaliza" bind:value={selectedFamilia.edificio_localiza} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
