@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabase';
 
   interface Familia {
     id?: number;
@@ -46,81 +47,54 @@
   );
 
   async function createFamilia() {
-    // const nombrePascal = toPascalCase(inputNombre);
-
-    const newFamilia = {
+    const nombre = toPascalCase(inputNombre);
+    const payload = {
       tipo: estadoFamilia,
-      nombre: inputNombre,
-      ancho: Number(inputAncho),
-      alto: Number(inputAlto),
+      nombre,
+      ancho: inputAncho === '' ? null : Number(inputAncho),
+      alto: inputAlto === '' ? null : Number(inputAlto),
       nivel_desplante: inputPosicion,
       edificio_modelo: inputOrigen,
       referencia: inputReferencia,
-      estado: 'Borrador', // O el estado que desees por defecto
+      estado: 'Borrador'
     };
 
-    try {
-      // Debug: log payload before sending
-      console.debug('createFamilia payload:', newFamilia);
-
-      const response = await fetch('https://familias.bimycp.site/api/familias', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newFamilia),
-      });
-
-      if (response.ok) {
-        const createdFamilia = await response.json();
-        const normalized = {
-          ...createdFamilia.data,
-          ancho: typeof createdFamilia.data.ancho === 'string' ? parseFloat(createdFamilia.data.ancho) : createdFamilia.data.ancho,
-          alto: typeof createdFamilia.data.alto === 'string' ? parseFloat(createdFamilia.data.alto) : createdFamilia.data.alto,
-        };
-        familias.push(normalized);
-        // Reset input fields
-        inputNombre = '';
-        inputAncho = '';
-        inputAlto = '';
-        inputPosicion = 0;
-        inputOrigen = '';
-        inputReferencia = '';
-        setFeedbackMessage('Familia creada exitosamente');
-      } else {
-        // Try to read server error message (if any) to help debugging
-        let errText = '';
-        try {
-          errText = await response.text();
-        } catch (e) {
-          errText = `${response.status} ${response.statusText}`;
-        }
-        console.error('createFamilia failed:', response.status, response.statusText, errText);
-        setFeedbackMessage(`Error al crear la familia: ${errText}`.slice(0, 200), 'error');
-      }
-    } catch (error) {
-      console.error('Error creating familia (network):', error);
-      setFeedbackMessage('Error de conexión al crear la familia', 'error');
+    console.debug('createFamilia payload:', payload);
+    const { data, error } = await supabase.from('familiasrevit').insert(payload).select().single();
+    if (error) {
+      console.log('supabase insert error', error);
+      setFeedbackMessage('Error al crear la familia:' + error.message, 'error');
+      return;
     }
+    const normalized = {
+      ...data,
+      ancho: typeof data.ancho === 'string' ? parseFloat(data.ancho) : data.ancho,
+      alto: typeof data.alto === 'string' ? parseFloat(data.alto) : data.alto,
+    };
+    familias.push(normalized);
+    inputNombre = '';
+    inputAncho = '';
+    inputAlto = '';
+    inputPosicion = 0;
+    inputOrigen = '';
+    inputReferencia = '';
+    setFeedbackMessage('Familia creada exitosamente')
   }
 
   onMount(async () => {
     try {
-      const response = await fetch('https://familias.bimycp.site/api/familias');
-
-      if (response.ok) {
-        const data = await response.json();
-        // Normalize ancho/alto to numbers to keep consistent types
-        familias = data.data.map((f: any) => ({
+        const { data, error } = await supabase.from('familiasrevit').select('*');
+        if (error) {
+          console.error('supabase select error', error);
+          return;
+        }
+        familias = data.map((f: any) => ({
           ...f,
           ancho: typeof f.ancho === 'string' ? parseFloat(f.ancho) : f.ancho,
           alto: typeof f.alto === 'string' ? parseFloat(f.alto) : f.alto,
         }));
-      } else {
-        console.error('Error fetching data:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      } catch (err) {
+        console.error('Error fetching data:', err);
     }
   });
 
@@ -210,33 +184,22 @@
 
       console.debug('updateFamilia payload:', payload);
 
-      const response = await fetch(`https://familias.bimycp.site/api/familias/${selectedFamilia!.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const { data, error } = await supabase
+        .from('familiasrevit')
+        .update(payload)
+        .eq('id', selectedFamilia.id)
+        .select()
+        .single();
 
-      if (response.ok) {
-        const updatedFamilia = await response.json();
-        const index = familias.findIndex(f => f.id === selectedFamilia!.id);
-        if (index !== -1) {
-          familias[index] = updatedFamilia.data;
-        }
-        showModal = false;
-        setFeedbackMessage('Familia actualizada exitosamente');
-      } else {
-        // Read response body to show details of 400
-        let errText = '';
-        try {
-          errText = await response.text();
-        } catch (e) {
-          errText = `${response.status} ${response.statusText}`;
-        }
-        console.error('updateFamilia failed:', response.status, response.statusText, errText);
-        setFeedbackMessage(`Error al actualizar la familia: ${errText}`.slice(0, 300), 'error');
+      if (error) {
+        console.error('supabase update error', error);
+        setFeedbackMessage('Error al actualizar la familia: ' + error.message, 'error');
+        return;
       }
+      const index = familias.findIndex(f => f.id === selectedFamilia!.id);
+      if (index !== -1) familias[index] = data;
+      showModal = false;
+      setFeedbackMessage('Familia actualizada exitosamente');
     } catch (error) {
       setFeedbackMessage('Error de conexión al actualizar', 'error');
     }
@@ -246,16 +209,14 @@
     if (!confirm('¿Estás seguro de eliminar esta familia?')) return;
 
     try {
-      const response = await fetch(`https://familias.bimycp.site/api/familias/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        familias = familias.filter(f => f.id !== id);
-        setFeedbackMessage('Familia eliminada exitosamente');
-      } else {
+      const { error } = await supabase.from('familiasrevit').delete().eq('id', id);
+     if (error) {
+        console.error('supabase delete error', error);
         setFeedbackMessage('Error al eliminar la familia', 'error');
+        return;
       }
+      familias = familias.filter(f => f.id !== id);
+      setFeedbackMessage('Familia eliminada exitosamente');
     } catch (error) {
       setFeedbackMessage('Error de conexión al eliminar', 'error');
     }
