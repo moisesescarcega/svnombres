@@ -5,9 +5,10 @@
   interface Familia {
     id?: number;
     tipo: string;
+    familia_rvt: string;
     nombre: string;
-    ancho: number;
-    alto: number;
+    B: number;
+    H: number;
     nivel_desplante: string;
     estado: string;
     edificio_modelo: string;
@@ -17,8 +18,8 @@
     revisor: string;
   }
   let familias = $state<Familia[]>([]);
-  let estadoFamilia = $state('Muro');
-  let categorias = ['Muro', 'Puerta', 'Ventana', 'Louver'];
+  let estadoFamilia = $state('Window');
+  let categorias = ['Door', 'Window', 'Curtain Wall', 'Wall', 'Floor', 'Roof', 'Ceiling', 'Column', 'Beam', 'Plumbing Fixture', 'Mechanical Equipment', 'Air Terminal', 'Duct', 'Pipe', 'Electrical Equipment', 'Lighting Fixture', 'Furniture', 'Generic Model', 'Railings', 'Stairs', 'Ramp', 'Structural Foundation', 'Site Component', 'Landscaping', 'Building Pad', 'Annotation Symbol', 'Detail Item', 'In-Place Family', 'Equipment', 'Fire Protection', 'Security Device', 'Room Separator', 'Mass', 'Roof Opening', 'Structural Framing', 'Structural Rebar', 'Casework', 'Specialty Equipment', 'Tag (Family)'];
 
   let inputNombre = $state('');
   let inputAncho = $state('');
@@ -32,12 +33,12 @@
 
   let familiasFiltradas = $derived(
     familias.filter((familia) => {
-      const tipoMatch = familia.tipo === estadoFamilia;
+      const tipoMatch = familia.familia_rvt === estadoFamilia;
       const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
       const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
       const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
-      const anchoMatch = anchoFilterActive ? formatNumber(familia.ancho) === formatNumber(inputAncho) : true;
-      const altoMatch = altoFilterActive ? formatNumber(familia.alto) === formatNumber(inputAlto) : true;
+      const anchoMatch = anchoFilterActive ? formatNumber(familia.B) === formatNumber(inputAncho) : true;
+      const altoMatch = altoFilterActive ? formatNumber(familia.H) === formatNumber(inputAlto) : true;
       return tipoMatch && nombreMatch && anchoMatch && altoMatch;
     })
   );
@@ -51,8 +52,8 @@
     const payload = {
       tipo: estadoFamilia,
       nombre,
-      ancho: inputAncho === '' ? null : Number(inputAncho),
-      alto: inputAlto === '' ? null : Number(inputAlto),
+      B: inputAncho === '' ? null : Number(inputAncho),
+      H: inputAlto === '' ? null : Number(inputAlto),
       nivel_desplante: inputPosicion,
       edificio_modelo: inputOrigen,
       referencia: inputReferencia,
@@ -68,8 +69,8 @@
     }
     const normalized = {
       ...data,
-      ancho: typeof data.ancho === 'string' ? parseFloat(data.ancho) : data.ancho,
-      alto: typeof data.alto === 'string' ? parseFloat(data.alto) : data.alto,
+      B: typeof data.B === 'string' ? parseFloat(data.B) : data.B,
+      H: typeof data.H === 'string' ? parseFloat(data.H) : data.H,
     };
     familias.push(normalized);
     inputNombre = '';
@@ -90,8 +91,8 @@
         }
         familias = data.map((f: any) => ({
           ...f,
-          ancho: typeof f.ancho === 'string' ? parseFloat(f.ancho) : f.ancho,
-          alto: typeof f.alto === 'string' ? parseFloat(f.alto) : f.alto,
+          B: typeof f.B === 'string' ? parseFloat(f.B) : f.B,
+          H: typeof f.H === 'string' ? parseFloat(f.H) : f.H,
         }));
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -131,8 +132,8 @@
   }
 
   async function copyFamiliaToClipboard(familia: Familia) {
-    const altoPart = formatNumber(familia.alto) ? `x${formatNumber(familia.alto)}cm` : 'cm';
-    const label = `${familia.tipo}-${familia.nombre}-${formatNumber(familia.ancho)}${altoPart}`;
+    const altoPart = formatNumber(familia.H) ? `x${formatNumber(familia.H)}cm` : 'cm';
+    const label = `${familia.tipo}-${familia.nombre}-${formatNumber(familia.B)}${altoPart}`;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(label);
@@ -175,11 +176,11 @@
       // Build payload and normalize numeric fields to proper types
       const payload: any = { ...selectedFamilia };
       payload.nombre = toPascalCase(String(payload.nombre ?? ''));
-      if (payload.ancho !== null && payload.ancho !== undefined && payload.ancho !== '') {
-        payload.ancho = typeof payload.ancho === 'string' ? parseFloat(payload.ancho) : payload.ancho;
+      if (payload.B !== null && payload.B !== undefined && payload.B !== '') {
+        payload.B = typeof payload.B === 'string' ? parseFloat(payload.B) : payload.B;
       }
-      if (payload.alto !== null && payload.alto !== undefined && payload.alto !== '') {
-        payload.alto = typeof payload.alto === 'string' ? parseFloat(payload.alto) : payload.alto;
+      if (payload.H !== null && payload.H !== undefined && payload.H !== '') {
+        payload.H = typeof payload.H === 'string' ? parseFloat(payload.H) : payload.H;
       }
 
       console.debug('updateFamilia payload:', payload);
@@ -300,8 +301,8 @@
           <thead>
             <tr>
               <th class="top-0 bg-base-200 z-10 w-1/4 text-left">Familia/Tipo (Click para copiar)</th>
-              <th class="top-0 bg-base-200 z-10 w-12 text-left">Ancho</th>
-              <th class="top-0 bg-base-200 z-10 w-12 text-left">Alto</th>
+              <th class="top-0 bg-base-200 z-10 w-12 text-left">B</th>
+              <th class="top-0 bg-base-200 z-10 w-12 text-left">H</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">Nivel</th>
               <th class="top-0 bg-base-200 z-10 w-1/8 text-left">Estado</th>
               <th class="top-0 bg-base-200 z-10 w-24 text-left">Origen</th>
@@ -319,9 +320,9 @@
                   class="cursor-pointer"
                   title="Click para copiar"
                   onclick={() => copyFamiliaToClipboard(familia)}
-                >{familia.tipo}-{familia.nombre}-{formatNumber(familia.ancho)}{formatNumber(familia.alto) ? `x${formatNumber(familia.alto)}cm` : `cm`}</td>
-                <td>{formatNumber(familia.ancho)}</td>
-                <td>{formatNumber(familia.alto)}</td>
+                >{familia.tipo}-{familia.nombre}-{formatNumber(familia.B)}{formatNumber(familia.H) ? `x${formatNumber(familia.H)}cm` : `cm`}</td>
+                <td>{formatNumber(familia.B)}</td>
+                <td>{formatNumber(familia.H)}</td>
                 <td>{familia.nivel_desplante}</td>
                 <td>{familia.estado}</td>
                 <td>{familia.edificio_modelo}</td>
@@ -370,12 +371,12 @@
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editAncho">Ancho</label>
-              <input type="number" step="0.1" id="editAncho" bind:value={selectedFamilia.ancho} class="input input-bordered w-2/3" />
+              <input type="number" step="0.1" id="editAncho" bind:value={selectedFamilia.B} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editAlto">Alto</label>
-              <input type="number" step="0.1" id="editAlto" bind:value={selectedFamilia.alto} class="input input-bordered w-2/3" />
+              <input type="number" step="0.1" id="editAlto" bind:value={selectedFamilia.H} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
@@ -387,12 +388,12 @@
               <label class="label w-1/3 text-left" for="editOrigen">Origen</label>
               <select id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="select select-bordered w-2/3">
                 <option value="">Selecciona...</option>
-                <option value="EA">EA</option>
-                <option value="EB">EB</option>
-                <option value="EC">EC</option>
-                <option value="ED">ED</option>
-                <option value="EE">EE</option>
-                <option value="EVP">EVP</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="V">V</option>
                 <option value="EXT">EXT</option>
               </select>
             </div>
@@ -439,8 +440,8 @@
     <div class="flex mt-4">
       <span class="mr-2">Tema:</span>
       <select class="select select-bordered select-sm" onchange={(e) => document.documentElement.setAttribute('data-theme', e.currentTarget.value)}>
-        <option value="dracula">Oscuro</option>
         <option value="retro">Claro</option>
+        <option value="dracula">Oscuro</option>
       </select>
     </div>
   </footer>
