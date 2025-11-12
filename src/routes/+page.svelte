@@ -40,6 +40,9 @@
   let showModal = $state(false);
   let selectedFamilia = $state<Familia | null>(null);
   let editingFamilia = $state<any>(null);
+  // Flags to control normalization state for create and edit flows
+  let createModeNormalized = $state(false);
+  let editModeNormalized = $state(false);
   let feedbackMessage = $state('');
 
   let familiasFiltradas = $derived(
@@ -61,8 +64,8 @@
     !inputNombre || (inputAncho == null || String(inputAncho).trim() === '') || !inputOrigen || (familiasFiltradas && familiasFiltradas.length > 0 )
   );
 
-  async function createFamilia() {
-    const nombre = formatAsKey(inputNombre);
+  async function createFamilia(normalize = false) {
+    const nombre = normalize ? formatAsKey(inputNombre) : String(inputNombre ?? '');
     const payload = {
       familia_rvt: categoriaSeleccionada, // Categoría en inglés (Revit)
       nombre,
@@ -97,6 +100,8 @@
     inputPosicion = '';
     inputOrigen = '';
     inputReferencia = '';
+    // Reset create normalization mode after creation
+    createModeNormalized = false;
     setFeedbackMessage('Familia creada exitosamente')
   }
 
@@ -153,13 +158,15 @@
   function formatAsKey(value: string) {
     if (!value) return '';
     const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const cleaned = normalized.replace(/[^0-9A-Za-z]+/g, ' ');
+    const cleaned = normalized.replace(/[^0-9A-Za-z-_]+/g, ' ');
     return cleaned
       .trim()
       .split(/\s+/)
       .filter(Boolean)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join('_');
+      .map(w => w.toUpperCase())
+      .join('_')
+      .replace(/_-/g, '-') // limpia posibles mezclas raras "_-" 
+      .replace(/-_/g, '-'); // idem
   }
 
   async function copyFamiliaToClipboard(familia: Familia) {
@@ -196,10 +203,12 @@
       edificio_localiza: familia.edificio_localiza?.join(', ') ?? '',
       sistema: familia.sistema?.join(', ') ?? ''
     };
+    // Ensure edit normalization flag resets when opening modal
+    editModeNormalized = false;
     showModal = true;
   }
 
-  async function updateFamilia() {
+  async function updateFamilia(normalize = false) {
     if (!editingFamilia || !editingFamilia.id) {
       setFeedbackMessage('Error: No hay familia seleccionada', 'error');
       return;
@@ -234,7 +243,8 @@
 
       // Preparar payload - solo incluir campos que no sean null/undefined
       const payload: any = {
-        nombre: formatAsKey(String(editingFamilia.nombre ?? '')),
+        // Only normalize if requested (when user clicked the Normalize button or submits via the normalized action)
+        nombre: normalize ? formatAsKey(String(editingFamilia.nombre ?? '')) : String(editingFamilia.nombre ?? ''),
         referencia: editingFamilia.referencia || ''
       };
 
@@ -298,8 +308,8 @@
         payload.revisiones = editingFamilia.revisiones;
       }
 
-      console.debug('updateFamilia - ID:', id);
-      console.debug('updateFamilia - payload:', payload);
+  console.debug('updateFamilia - ID:', id);
+  console.debug('updateFamilia - payload:', payload);
 
       const { data, error } = await supabase
         .from('familiasrevit')
@@ -332,6 +342,8 @@
       if (index !== -1) {
         familias[index] = updatedFamilia;
       }
+      // Reset edit normalization flag after successful update and close modal
+      editModeNormalized = false;
       showModal = false;
       setFeedbackMessage('Familia actualizada exitosamente');
     } catch (error) {
@@ -374,10 +386,10 @@
         <label class="label" for="inputCategoria">Categoría Revit</label>
         <input id="inputCategoria" type="text" bind:value={categoriaSeleccionada} class="input input-bordered input-md w-full max-w-xs" disabled />
       </div>
-      <div class="form-control">
-      <label class="label" for="inputNombre">Nombre de Clave</label>
-      <input id="inputNombre" type="text" bind:value={inputNombre} onblur={() => inputNombre = formatAsKey(inputNombre)} class="input input-bordered input-md w-full max-w-xs" />
-      </div>
+  <div class="form-control">
+  <label class="label" for="inputNombre">Nombre de Clave</label>
+  <input id="inputNombre" type="text" bind:value={inputNombre} class="input input-bordered input-md w-full max-w-xs" />
+  </div>
       <div class="form-control">
         <label class="label" for="inputAncho">Ancho (B)</label>
         <input id="inputAncho" type="number" step="0.1" placeholder="Ancho" bind:value={inputAncho} class="input input-bordered input-md w-full max-w-xs" />
@@ -407,9 +419,10 @@
       <label class="label" for="inputReferencia">Referencia</label>
       <input id="inputReferencia" type="text" placeholder="Referencia" bind:value={inputReferencia} class="input input-bordered input-md w-full max-w-xs" />
       </div>
-      <div class="flex items-end">
-      <button class="btn btn-lg" onclick={createFamilia} disabled={isCrearButtonDisabled}>Crear</button>
-      </div>
+  <div class="flex items-end gap-2">
+  <button type="button" class="btn btn-lg" onclick={() => { inputNombre = formatAsKey(String(inputNombre ?? '')); createModeNormalized = true; }} disabled={isCrearButtonDisabled}>Normalizar</button>
+  <button type="button" class={createModeNormalized ? 'btn btn-lg' : 'btn btn-warning btn-lg'} onclick={() => createFamilia(createModeNormalized)} disabled={isCrearButtonDisabled}>{createModeNormalized ? 'Crear' : 'Crear sin normalizar'}</button>
+  </div>
         </div>
         <div class="flex flex-wrap gap-2 mb-4">
         {#each categorias as categoria}
@@ -481,7 +494,7 @@
     <dialog class="modal modal-open">
       <div class="modal-box max-w-2xl">
         <h3 class="font-bold text-lg mb-4">Editar Familia</h3>
-        <form onsubmit={(e) => { e.preventDefault(); updateFamilia(); }}>
+  <form onsubmit={(e) => { e.preventDefault(); updateFamilia(editModeNormalized); }}>
           <div class="space-y-4">
             <div class="form-control flex flex-row items-center gap-4">
               <label class="label w-1/3 text-left" for="editNombre">Nombre</label>
@@ -568,7 +581,8 @@
           </div>
 
           <div class="modal-action">
-            <button type="submit" class="btn btn-primary">Guardar</button>
+            <button type="button" class="btn" onclick={() => { editingFamilia.nombre = formatAsKey(String(editingFamilia.nombre ?? '')); editModeNormalized = true; }}>Normalizar</button>
+            <button type="button" class={editModeNormalized ? 'btn btn-primary' : 'btn btn-warning'} onclick={() => updateFamilia(editModeNormalized)}>{editModeNormalized ? 'Actualizar' : 'Actualizar sin normalizar'}</button>
             <button type="button" class="btn" onclick={() => showModal = false}>Cancelar</button>
           </div>
         </form>
