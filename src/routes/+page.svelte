@@ -5,7 +5,7 @@
   interface Familia {
     id?: number;
     nombre: string;
-    tipo: string | null;
+    familia_rvt: string | null;
     B: number | null;
     H: number | null;
     nivel_desplante: number | null;
@@ -35,7 +35,7 @@
 
   let familiasFiltradas = $derived(
     familias.filter((familia) => {
-      const tipoMatch = familia.tipo === estadoFamilia;
+      const tipoMatch = familia.familia_rvt === estadoFamilia;
       const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
       const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
       const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
@@ -140,7 +140,7 @@
 
   async function copyFamiliaToClipboard(familia: Familia) {
     const altoPart = formatNumber(familia.H) ? `x${formatNumber(familia.H)}cm` : 'cm';
-    const label = `${familia.tipo}-${familia.nombre}-${formatNumber(familia.B)}${altoPart}`;
+    const label = `${familia.familia_rvt}-${familia.nombre}-${formatNumber(familia.B)}${altoPart}`;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(label);
@@ -344,7 +344,7 @@
                   class="cursor-pointer"
                   title="Click para copiar"
                   onclick={() => copyFamiliaToClipboard(familia)}
-                >{familia.tipo}-{familia.nombre}-{formatNumber(familia.B)}{formatNumber(familia.H) ? `x${formatNumber(familia.H)}cm` : `cm`}</td>
+                >{familia.familia_rvt}-{familia.nombre}-{formatNumber(familia.B)}{formatNumber(familia.H) ? `x${formatNumber(familia.H)}cm` : `cm`}</td>
                 <td>{formatNumber(familia.B)}</td>
                 <td>{formatNumber(familia.H)}</td>
                 <td>{familia.nivel_desplante}</td>
