@@ -4,36 +4,38 @@
 
   interface Familia {
     id?: number;
-    tipo: string;
-    familia_rvt: string;
     nombre: string;
-    B: number;
-    H: number;
-    nivel_desplante: string;
-    estado: string;
-    edificio_modelo: string;
-    edificio_localiza: string;
-    parametros: string;
+    tipo: string | null;
+    B: number | null;
+    H: number | null;
+    nivel_desplante: number | null;
+    estado: string | null;
+    edificio_modelo: string | null;
+    edificio_localiza: string[] | null;
+    parametros: string | null;
     referencia: string;
-    revisor: string;
+    revisor: string | null;
   }
+
   let familias = $state<Familia[]>([]);
   let estadoFamilia = $state('Window');
   let categorias = ['Door', 'Window', 'Curtain Wall', 'Wall', 'Floor', 'Roof', 'Ceiling', 'Column', 'Beam', 'Plumbing Fixture', 'Mechanical Equipment', 'Air Terminal', 'Duct', 'Pipe', 'Electrical Equipment', 'Lighting Fixture', 'Furniture', 'Generic Model', 'Railings', 'Stairs', 'Ramp', 'Structural Foundation', 'Site Component', 'Landscaping', 'Building Pad', 'Annotation Symbol', 'Detail Item', 'In-Place Family', 'Equipment', 'Fire Protection', 'Security Device', 'Room Separator', 'Mass', 'Roof Opening', 'Structural Framing', 'Structural Rebar', 'Casework', 'Specialty Equipment', 'Tag (Family)'];
 
   let inputNombre = $state('');
-  let inputAncho = $state('');
-  let inputAlto = $state('');
-  let inputPosicion = $state(0);
+  let inputAncho = $state<number | ''>('');
+  let inputAlto = $state<number | ''>('');
+  let inputPosicion = $state<number | ''>('');
   let inputOrigen = $state('');
   let inputReferencia = $state('');
   let showModal = $state(false);
   let selectedFamilia = $state<Familia | null>(null);
+  // State for the modal form to handle data transformation for editing
+  let editingFamilia = $state<any>(null);
   let feedbackMessage = $state('');
 
   let familiasFiltradas = $derived(
     familias.filter((familia) => {
-      const tipoMatch = familia.familia_rvt === estadoFamilia;
+      const tipoMatch = familia.tipo === estadoFamilia;
       const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
       const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
       const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
@@ -48,13 +50,13 @@
   );
 
   async function createFamilia() {
-    const nombre = toPascalCase(inputNombre);
+    const nombre = formatAsKey(inputNombre);
     const payload = {
       tipo: estadoFamilia,
       nombre,
       B: inputAncho === '' ? null : Number(inputAncho),
       H: inputAlto === '' ? null : Number(inputAlto),
-      nivel_desplante: inputPosicion,
+      nivel_desplante: inputPosicion === '' ? null : Number(inputPosicion),
       edificio_modelo: inputOrigen,
       referencia: inputReferencia,
       estado: 'Borrador'
@@ -67,16 +69,18 @@
       setFeedbackMessage('Error al crear la familia:' + error.message, 'error');
       return;
     }
-    const normalized = {
+    // Supabase should return numeric types correctly, but we ensure it just in case
+    const newFamilia: Familia = {
       ...data,
-      B: typeof data.B === 'string' ? parseFloat(data.B) : data.B,
-      H: typeof data.H === 'string' ? parseFloat(data.H) : data.H,
+      B: data.B ? Number(data.B) : null,
+      H: data.H ? Number(data.H) : null,
+      nivel_desplante: data.nivel_desplante ? Number(data.nivel_desplante) : null,
     };
-    familias.push(normalized);
+    familias.push(newFamilia);
     inputNombre = '';
     inputAncho = '';
     inputAlto = '';
-    inputPosicion = 0;
+    inputPosicion = '';
     inputOrigen = '';
     inputReferencia = '';
     setFeedbackMessage('Familia creada exitosamente')
@@ -89,40 +93,43 @@
           console.error('supabase select error', error);
           return;
         }
+        // Ensure numeric fields are numbers, as Supabase can sometimes return them as strings.
         familias = data.map((f: any) => ({
           ...f,
-          B: typeof f.B === 'string' ? parseFloat(f.B) : f.B,
-          H: typeof f.H === 'string' ? parseFloat(f.H) : f.H,
+          B: f.B ? Number(f.B) : null,
+          H: f.H ? Number(f.H) : null,
+          nivel_desplante: f.nivel_desplante ? Number(f.nivel_desplante) : null,
         }));
       } catch (err) {
         console.error('Error fetching data:', err);
     }
   });
 
-  function formatNumber(num: number | string) {
+  function formatNumber(num: number | string | null | undefined): string {
     if (num === null || num === undefined || String(num).trim() === '') return '';
-    const number = typeof num === 'string' ? parseFloat(num) : num;
+    const number = Number(num);
+
     if (!isFinite(number) || isNaN(number)) {
       return '';
     }
-    // If the numeric value is exactly zero, present as empty string
+    // This is a design choice: 0 is displayed as an empty string.
     if (number === 0) return '';
 
-    // Treat as integer when it's mathematically an integer (avoid floating precision issues)
-    if (Number.isFinite(number) && Math.round(number) === number) {
+    // Return as integer if it has no decimal part.
+    if (number % 1 === 0) {
       return number.toFixed(0);
     }
-    // Otherwise round to one decimal
-    return Number(number.toFixed(1)).toString();
+    // Otherwise, show one decimal place.
+    return number.toFixed(1);
   }
 
-  function toPascalCase(value: string) {
+  function formatAsKey(value: string) {
     if (!value) return '';
     // Normalize and remove diacritics (á -> a, ñ -> n, etc.)
     const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     // Replace any non-alphanumeric characters with a space
     const cleaned = normalized.replace(/[^0-9A-Za-z]+/g, ' ');
-    // Split into words, capitalize each, join without separator
+    // Split into words, capitalize each, join with underscore
     return cleaned
       .trim()
       .split(/\s+/)
@@ -138,7 +145,7 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(label);
       } else {
-        // Fallback para navegadores más antiguos
+        // Fallback for older browsers
         const textarea = document.createElement('textarea');
         textarea.value = label;
         textarea.style.position = 'fixed';
@@ -156,39 +163,46 @@
   }
 
   function openModal(familia: Familia) {
-    selectedFamilia = { ...familia };
+    selectedFamilia = familia;
+    // Create a mutable copy for the form, converting array to string for editing
+    editingFamilia = {
+      ...familia,
+      edificio_localiza: familia.edificio_localiza?.join(', ') ?? ''
+    };
     showModal = true;
   }
 
   async function updateFamilia() {
-    if (!selectedFamilia) return;
+    if (!editingFamilia) return;
 
     try {
-      // Allowed enum values (must match backend ENUM)
       const allowedEstados = ['Borrador', 'En revision', 'Aprobada', 'Desactualizada'];
-
-      if (!allowedEstados.includes(selectedFamilia.estado)) {
-        setFeedbackMessage(`Estado inválido: ${selectedFamilia.estado}`, 'error');
-        console.error('Estado inválido antes de enviar update:', selectedFamilia.estado);
+      if (editingFamilia.estado && !allowedEstados.includes(editingFamilia.estado)) {
+        setFeedbackMessage(`Estado inválido: ${editingFamilia.estado}`, 'error');
         return;
       }
 
-      // Build payload and normalize numeric fields to proper types
-      const payload: any = { ...selectedFamilia };
-      payload.nombre = toPascalCase(String(payload.nombre ?? ''));
-      if (payload.B !== null && payload.B !== undefined && payload.B !== '') {
-        payload.B = typeof payload.B === 'string' ? parseFloat(payload.B) : payload.B;
-      }
-      if (payload.H !== null && payload.H !== undefined && payload.H !== '') {
-        payload.H = typeof payload.H === 'string' ? parseFloat(payload.H) : payload.H;
-      }
+      // Prepare payload for Supabase, converting fields back to their correct types
+      const payload = {
+        ...editingFamilia,
+        nombre: formatAsKey(String(editingFamilia.nombre ?? '')),
+        B: editingFamilia.B === '' || editingFamilia.B === null ? null : Number(editingFamilia.B),
+        H: editingFamilia.H === '' || editingFamilia.H === null ? null : Number(editingFamilia.H),
+        nivel_desplante: editingFamilia.nivel_desplante === '' || editingFamilia.nivel_desplante === null ? null : Number(editingFamilia.nivel_desplante),
+        edificio_localiza: editingFamilia.edificio_localiza.trim()
+          ? editingFamilia.edificio_localiza.split(',').map((s: string) => s.trim())
+          : null,
+      };
+      
+      const id = payload.id;
+      delete payload.id; // id is not part of the update payload body
 
       console.debug('updateFamilia payload:', payload);
 
       const { data, error } = await supabase
         .from('familiasrevit')
         .update(payload)
-        .eq('id', selectedFamilia.id)
+        .eq('id', id)
         .select()
         .single();
 
@@ -197,8 +211,18 @@
         setFeedbackMessage('Error al actualizar la familia: ' + error.message, 'error');
         return;
       }
-      const index = familias.findIndex(f => f.id === selectedFamilia!.id);
-      if (index !== -1) familias[index] = data;
+      
+      const updatedFamilia: Familia = {
+        ...data,
+        B: data.B ? Number(data.B) : null,
+        H: data.H ? Number(data.H) : null,
+        nivel_desplante: data.nivel_desplante ? Number(data.nivel_desplante) : null,
+      };
+
+      const index = familias.findIndex(f => f.id === id);
+      if (index !== -1) {
+        familias[index] = updatedFamilia;
+      }
       showModal = false;
       setFeedbackMessage('Familia actualizada exitosamente');
     } catch (error) {
@@ -242,7 +266,7 @@
       </div>
       <div class="form-control">
       <label class="label" for="inputNombre">Nombre de Clave</label>
-      <input id="inputNombre" type="text" bind:value={inputNombre} onblur={() => inputNombre = toPascalCase(inputNombre)} class="input input-bordered input-md w-full max-w-xs" />
+      <input id="inputNombre" type="text" bind:value={inputNombre} onblur={() => inputNombre = formatAsKey(inputNombre)} class="input input-bordered input-md w-full max-w-xs" />
       </div>
       <div class="form-control">
         <label class="label" for="inputAncho">Ancho</label>
@@ -254,7 +278,7 @@
       </div>
       <div class="form-control">
       <label class="label" for="inputPosicion">Nivel/Posición</label>
-      <input id="inputPosicion" type="number" placeholder="Posicion" bind:value={inputPosicion} class="input input-bordered input-md w-full max-w-xs" />
+      <input id="inputPosicion" type="number" step="any" placeholder="Posicion" bind:value={inputPosicion} class="input input-bordered input-md w-full max-w-xs" />
       </div>
       <div class="form-control">
       <label class="label" for="inputOrigen">Origen</label>
@@ -326,7 +350,7 @@
                 <td>{familia.nivel_desplante}</td>
                 <td>{familia.estado}</td>
                 <td>{familia.edificio_modelo}</td>
-                <td>{familia.edificio_localiza}</td>
+                <td>{familia.edificio_localiza?.join(', ')}</td>
                 <td>{familia.parametros}</td>
                 <td>{familia.referencia}</td>
                 <td>{familia.revisor}</td>
@@ -348,7 +372,7 @@
     </main>
   </div>
 
-  {#if showModal && selectedFamilia}
+  {#if showModal && editingFamilia}
     <dialog class="modal modal-open">
       <div class="modal-box">
         <h3 class="font-bold text-lg">Editar Familia</h3>
@@ -356,12 +380,12 @@
           <div class="space-y-4">
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editNombre">Nombre</label>
-              <input type="text" id="editNombre" bind:value={selectedFamilia.nombre} class="input input-bordered w-2/3" />
+              <input type="text" id="editNombre" bind:value={editingFamilia.nombre} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editEstado">Estado</label>
-              <select id="editEstado" bind:value={selectedFamilia.estado} class="select select-bordered w-2/3">
+              <select id="editEstado" bind:value={editingFamilia.estado} class="select select-bordered w-2/3">
                 <option value="Borrador">Borrador</option>
                 <option value="En revision">En revisión</option>
                 <option value="Aprobada">Aprobada</option>
@@ -371,51 +395,52 @@
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editAncho">Ancho</label>
-              <input type="number" step="0.1" id="editAncho" bind:value={selectedFamilia.B} class="input input-bordered w-2/3" />
+              <input type="number" step="0.1" id="editAncho" bind:value={editingFamilia.B} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editAlto">Alto</label>
-              <input type="number" step="0.1" id="editAlto" bind:value={selectedFamilia.H} class="input input-bordered w-2/3" />
+              <input type="number" step="0.1" id="editAlto" bind:value={editingFamilia.H} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editPosicion">Nivel/Posición</label>
-              <input type="number" id="editPosicion" bind:value={selectedFamilia.nivel_desplante} class="input input-bordered w-2/3" />
+              <input type="number" id="editPosicion" step="any" bind:value={editingFamilia.nivel_desplante} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
-              <label class="label w-1/3 text-left" for="editOrigen">Origen</label>
-              <select id="editOrigen" bind:value={selectedFamilia.edificio_modelo} class="select select-bordered w-2/3">
+              <label class="label w-1/3 text-left" for="editOrigen">Origen</label>              
+              <select id="editOrigen" bind:value={editingFamilia.edificio_modelo} class="select select-bordered w-2/3">
                 <option value="">Selecciona...</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="D">D</option>
-                <option value="E">E</option>
-                <option value="V">V</option>
+                <option value="EA">EA</option>
+                <option value="EB">EB</option>
+                <option value="EC">EC</option>
+                <option value="ED">ED</option>
+                <option value="EE">EE</option>
+                <option value="EVP">EVP</option>
                 <option value="EXT">EXT</option>
               </select>
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
-              <label class="label w-1/3 text-left" for="editLocaliza">Ubicación</label>
-              <input type="text" id="editLocaliza" bind:value={selectedFamilia.edificio_localiza} class="input input-bordered w-2/3" />
+              <label class="label w-1/3 text-left" for="editLocaliza">Ubicación (separado por comas)</label>
+              <input type="text" id="editLocaliza" bind:value={editingFamilia.edificio_localiza} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editParametros">Parámetros</label>
-              <input type="text" id="editParametros" bind:value={selectedFamilia.parametros} class="input input-bordered w-2/3" />
+              <input type="text" id="editParametros" bind:value={editingFamilia.parametros} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
               <label class="label w-1/3 text-left" for="editReferencia">Referencia</label>
-              <input type="text" id="editReferencia" bind:value={selectedFamilia.referencia} class="input input-bordered w-2/3" />
+              <input type="text" id="editReferencia" bind:value={editingFamilia.referencia} class="input input-bordered w-2/3" />
             </div>
 
             <div class="form-control flex items-center justify-between gap-4">
+
               <label class="label w-1/3 text-left" for="editRevisor">Revisor</label>
-              <input type="text" id="editRevisor" bind:value={selectedFamilia.revisor} class="input input-bordered w-2/3" />
+              <input type="text" id="editRevisor" bind:value={editingFamilia.revisor} class="input input-bordered w-2/3" />
             </div>
           </div>
 
