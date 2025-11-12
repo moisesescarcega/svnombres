@@ -19,7 +19,7 @@
 		revisor: string | null;
 		categoria: string | null;
 		nivel: string | null;
-		clave: string | null;
+		clave: string;
 		disciplina: string | null;
 		propiedades: string | null;
 		especificacion: string | null;
@@ -65,13 +65,14 @@
 		'Specialty Equipment'
 	];
 
-	let inputNombre = $state('');
+	let inputClave = $state('');
 	let inputAncho = $state<number | ''>('');
 	let inputAlto = $state<number | ''>('');
 	let inputPosicion = $state<number | ''>('');
 	let inputUbicacion = $state<string[] | ''>([]);
   let inputOrigen = $state('');
 	let inputReferencia = $state('');
+  let inputSistema = $state<string[] | ''>([]);
 	let showModal = $state(false);
 	let selectedFamilia = $state<Familia | null>(null);
 	let editingFamilia = $state<any>(null);
@@ -82,9 +83,12 @@
 
 	let familiasFiltradas = $derived(
 		familias.filter((familia) => {
-			const categoriaMatch = familia.familia_rvt === categoriaSeleccionada;
-			const nombreMatch = inputNombre
-				? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase())
+			// If no category is selected (empty string or null), show all categories
+			const categoriaMatch = !categoriaSeleccionada || String(categoriaSeleccionada).trim() === ''
+				? true
+				: (familia.familia_rvt || '').toLowerCase() === String(categoriaSeleccionada).toLowerCase();
+			const claveMatch = inputClave
+				? (String(familia.clave || '').toLowerCase().includes(String(inputClave).toLowerCase().trim()))
 				: true;
 			const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
 			const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
@@ -97,12 +101,12 @@
 			const altoMatch = altoFilterActive
 				? formatNumber(familia.H) === formatCmInput(inputAlto)
 				: true;
-			return categoriaMatch && nombreMatch && anchoMatch && altoMatch;
+			return categoriaMatch && claveMatch && anchoMatch && altoMatch;
 		})
 	);
 
 	let isCrearButtonDisabled = $derived(
-		!inputNombre ||
+		!inputClave ||
 			inputAncho == null ||
 			String(inputAncho).trim() === '' ||
 			(Array.isArray(inputUbicacion) ? inputUbicacion.length === 0 : !inputUbicacion) ||
@@ -110,7 +114,7 @@
 	);
 
 	async function createFamilia(normalize = false) {
-		const nombre = normalize ? formatAsKey(String(inputNombre ?? '')) : String(inputNombre ?? '');
+		const clave = normalize ? formatAsKey(String(inputClave ?? '')) : String(inputClave ?? '');
 		// Ensure ubicacion is an array when building payload
 		const ubicacionArray = Array.isArray(inputUbicacion)
 			? inputUbicacion
@@ -120,15 +124,24 @@
 					.map((s: string) => s.trim())
 					.filter(Boolean)
 			: [];
+    const sistemaArray = Array.isArray(inputSistema)
+			? inputSistema
+			: inputSistema
+			? String(inputSistema)
+					.split(',')
+					.map((s: string) => s.trim())
+					.filter(Boolean)
+			: [];
 		const payload = {
 			familia_rvt: categoriaSeleccionada, // Categoría en inglés (Revit)
-			nombre,
+			clave: clave,
 			// Inputs are provided in cm in the UI. Convert to meters for the database.
 			B: inputAncho === '' ? null : Number(inputAncho) / 100,
 			H: inputAlto === '' ? null : Number(inputAlto) / 100,
 			nivel_desplante: inputPosicion === '' ? null : Number(inputPosicion),
 			edificio_modelo: inputOrigen,
 			edificio_localiza: ubicacionArray,
+      sistema: sistemaArray,
 			referencia: inputReferencia,
 			estado: 'Borrador'
 		};
@@ -149,11 +162,12 @@
 			nivel_desplante: data.nivel_desplante ? Number(data.nivel_desplante) : null
 		};
 		familias.push(newFamilia);
-		inputNombre = '';
+		inputClave = '';
 		inputAncho = '';
 		inputAlto = '';
 		inputPosicion = '';
 		inputUbicacion = [];
+    inputSistema = [];
 		inputReferencia = '';
 		// Reset create normalization mode after creation
 		createModeNormalized = false;
@@ -310,9 +324,9 @@
 			// Preparar payload - solo incluir campos que no sean null/undefined
 			const payload: any = {
 				// Only normalize if requested (when user clicked the Normalize button or submits via the normalized action)
-				nombre: normalize
-					? formatAsKey(String(editingFamilia.nombre ?? ''))
-					: String(editingFamilia.nombre ?? ''),
+				clave: normalize
+					? formatAsKey(String(editingFamilia.clave ?? ''))
+					: String(editingFamilia.clave ?? ''),
 				referencia: editingFamilia.referencia || ''
 			};
 
@@ -482,14 +496,14 @@
             </label>
 					</div>
 					<div class="form-control">
-						<label class="input" for="inputNombre">
+						<label class="input" for="inputClave">
               <span class="label">
-                Nombre de Clave
+                Clave
               </span>
               <input
-                id="inputNombre"
+                id="inputClave"
                 type="text"
-                bind:value={inputNombre}
+                bind:value={inputClave}
                 class="input-bordered input input-sm w-full max-w-xs"
               />
             </label>
@@ -524,6 +538,20 @@
             />
             </label>
 					</div>
+          <div class="form-control">
+						<label class="input" for="inputSistema">
+              <span class="label">
+                Sistemas
+              </span>
+              <input
+                id="inputSistema"
+                type="text"
+                placeholder="Sistemas separados por comas"
+                bind:value={inputSistema}
+                class="input-bordered input input-sm w-full max-w-xs"
+              />
+            </label>
+					</div>
 					<!-- <div class="form-control">
 						<label class="input" for="inputPosicion">
               <span class="label">
@@ -546,8 +574,7 @@
               </span>
               <input
                 id="inputOrigen"
-                type="number"
-                step="any"
+                type="text"
                 placeholder="Origen"
                 bind:value={inputOrigen}
                 class="input-bordered input input-sm w-full max-w-xs"
@@ -597,7 +624,7 @@
 							type="button"
 							class="btn"
 							onclick={() => {
-								inputNombre = formatAsKey(String(inputNombre ?? ''));
+								inputClave = formatAsKey(String(inputClave ?? ''));
 								createModeNormalized = true;
 							}}
 							disabled={isCrearButtonDisabled}>Normalizar</button
@@ -617,7 +644,7 @@
 							class="btn btn-sm"
 							class:btn-primary={categoriaSeleccionada === categoria}
 							class:btn-secundary={categoriaSeleccionada !== categoria}
-							onclick={() => (categoriaSeleccionada = categoria)}
+							onclick={() => (categoriaSeleccionada = categoriaSeleccionada === categoria ? '' : categoria)}
 						>
 							{categoria}
 						</button>
@@ -626,7 +653,7 @@
 			</div>
 		</div>
 
-    <div class="divider divider-info">Rellena para buscar o registrar familias de Revit</div>
+    <div class="divider divider-info">&uarr; Rellena para buscar o registrar familias de Revit | Normaliza para eliminar espacios y símbolos (para evitar problemas por duplicados) &uarr;</div>
 
 		<main class="z-999 mb-20">
 			<div class="mb-4 max-h-[calc(100vh-6rem-4rem)] overflow-auto">
@@ -734,11 +761,11 @@
 				>
 					<div class="space-y-4">
 						<div class="form-control flex flex-row items-center gap-4">
-							<label class="label w-1/3 text-left" for="editNombre">Nombre</label>
+							<label class="label w-1/3 text-left" for="editClave">Clave</label>
 							<input
 								type="text"
-								id="editNombre"
-								bind:value={editingFamilia.nombre}
+								id="editClave"
+								bind:value={editingFamilia.clave}
 								class="input-bordered input flex-1"
 							/>
 						</div>
@@ -897,7 +924,7 @@
 							type="button"
 							class="btn"
 							onclick={() => {
-								editingFamilia.nombre = formatAsKey(String(editingFamilia.nombre ?? ''));
+								editingFamilia.clave = formatAsKey(String(editingFamilia.clave ?? ''));
 								editModeNormalized = true;
 							}}>Normalizar</button
 						>
