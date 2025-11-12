@@ -69,7 +69,8 @@
 	let inputAncho = $state<number | ''>('');
 	let inputAlto = $state<number | ''>('');
 	let inputPosicion = $state<number | ''>('');
-	let inputOrigen = $state('');
+	let inputUbicacion = $state<string[] | ''>([]);
+  let inputOrigen = $state('');
 	let inputReferencia = $state('');
 	let showModal = $state(false);
 	let selectedFamilia = $state<Familia | null>(null);
@@ -104,12 +105,21 @@
 		!inputNombre ||
 			inputAncho == null ||
 			String(inputAncho).trim() === '' ||
-			!inputOrigen ||
+			(Array.isArray(inputUbicacion) ? inputUbicacion.length === 0 : !inputUbicacion) ||
 			(familiasFiltradas && familiasFiltradas.length > 0)
 	);
 
 	async function createFamilia(normalize = false) {
-		const nombre = normalize ? formatAsKey(inputNombre) : String(inputNombre ?? '');
+		const nombre = normalize ? formatAsKey(String(inputNombre ?? '')) : String(inputNombre ?? '');
+		// Ensure ubicacion is an array when building payload
+		const ubicacionArray = Array.isArray(inputUbicacion)
+			? inputUbicacion
+			: inputUbicacion
+			? String(inputUbicacion)
+					.split(',')
+					.map((s: string) => s.trim())
+					.filter(Boolean)
+			: [];
 		const payload = {
 			familia_rvt: categoriaSeleccionada, // Categoría en inglés (Revit)
 			nombre,
@@ -118,6 +128,7 @@
 			H: inputAlto === '' ? null : Number(inputAlto) / 100,
 			nivel_desplante: inputPosicion === '' ? null : Number(inputPosicion),
 			edificio_modelo: inputOrigen,
+			edificio_localiza: ubicacionArray,
 			referencia: inputReferencia,
 			estado: 'Borrador'
 		};
@@ -142,7 +153,7 @@
 		inputAncho = '';
 		inputAlto = '';
 		inputPosicion = '';
-		inputOrigen = '';
+		inputUbicacion = [];
 		inputReferencia = '';
 		// Reset create normalization mode after creation
 		createModeNormalized = false;
@@ -215,7 +226,7 @@
 
 	async function copyFamiliaToClipboard(familia: Familia) {
 		const altoPart = formatNumber(familia.H) ? `x${formatNumber(familia.H)}cm` : 'cm';
-		const label = `${familia.nombre}-${formatNumber(familia.B)}${altoPart}`;
+		const label = `${familia.clave}-${formatNumber(familia.B)}${altoPart}`;
 		try {
 			if (navigator.clipboard && navigator.clipboard.writeText) {
 				await navigator.clipboard.writeText(label);
@@ -253,8 +264,10 @@
 				familia.L !== null && familia.L !== undefined
 					? Number((Number(familia.L) * 100).toFixed(3))
 					: '',
-			edificio_localiza: familia.edificio_localiza?.join(', ') ?? '',
-			sistema: familia.sistema?.join(', ') ?? ''
+			edificio_localiza: Array.isArray(familia.edificio_localiza)
+          ? [...familia.edificio_localiza]
+          : (familia.edificio_localiza ? String(familia.edificio_localiza).split(',').map((s: string) => s.trim()).filter(Boolean) : []),
+      sistema: familia.sistema?.join(', ') ?? ''
 		};
 		// Ensure edit normalization flag resets when opening modal
 		editModeNormalized = false;
@@ -330,8 +343,11 @@
 			if (editingFamilia.estado) {
 				payload.estado = editingFamilia.estado;
 			}
-			if (editingFamilia.edificio_modelo) {
-				payload.edificio_modelo = editingFamilia.edificio_modelo;
+      if (editingFamilia.edificio_modelo) {
+        payload.edificio_modelo = editingFamilia.edificio_modelo;
+      }
+			if (editingFamilia.edificio_localiza) {
+				payload.edificio_localiza = editingFamilia.edificio_localiza;
 			}
 			if (
 				editingFamilia.edificio_localiza &&
@@ -452,83 +468,129 @@
 			<div class="container mx-auto p-4">
 				<div class="mb-2 flex flex-wrap gap-4">
 					<div>
-						<label class="label" for="inputCategoria">Categoría Revit</label>
-						<input
-							id="inputCategoria"
-							type="text"
-							bind:value={categoriaSeleccionada}
-							class="input-bordered input input-sm w-full max-w-xs"
-							disabled
-						/>
+						<label class="input" for="inputCategoria">
+              <span class="label">
+                Categoría Revit
+              </span>
+              <input
+                id="inputCategoria"
+                type="text"
+                bind:value={categoriaSeleccionada}
+                class="input-bordered input input-sm w-full max-w-xs"
+                disabled
+              />
+            </label>
 					</div>
 					<div class="form-control">
-						<label class="label" for="inputNombre">Nombre de Clave</label>
-						<input
-							id="inputNombre"
-							type="text"
-							bind:value={inputNombre}
-							class="input-bordered input input-sm w-full max-w-xs"
-						/>
+						<label class="input" for="inputNombre">
+              <span class="label">
+                Nombre de Clave
+              </span>
+              <input
+                id="inputNombre"
+                type="text"
+                bind:value={inputNombre}
+                class="input-bordered input input-sm w-full max-w-xs"
+              />
+            </label>
 					</div>
 					<div class="form-control">
-						<label class="label" for="inputAncho">B (cm)</label>
-						<input
-							id="inputAncho"
-							type="number"
-							step="0.1"
-							placeholder="Ancho"
-							bind:value={inputAncho}
-							class="input-bordered input input-sm w-full max-w-xs"
-						/>
+						<label class="input" for="inputAncho">
+              <span class="label">
+                B (cm)
+              </span>
+              <input
+                id="inputAncho"
+                type="number"
+                step="0.1"
+                placeholder="Ancho"
+                bind:value={inputAncho}
+                class="input-bordered input input-sm w-full max-w-xs"
+              />
+            </label>
 					</div>
 					<div class="form-control">
-						<label class="label" for="inputAlto">H (cm)</label>
+						<label class="input" for="inputAlto">
+            <span class="label">
+              H (cm)
+            </span>
 						<input
-							id="inputAlto"
-							type="number"
-							step="0.1"
-							placeholder="Alto"
-							bind:value={inputAlto}
-							class="input-bordered input input-sm w-full max-w-xs"
-						/>
+              id="inputAlto"
+              type="number"
+              step="0.1"
+              placeholder="Alto"
+              bind:value={inputAlto}
+              class="input-bordered input input-sm w-full max-w-xs"
+            />
+            </label>
+					</div>
+					<!-- <div class="form-control">
+						<label class="input" for="inputPosicion">
+              <span class="label">
+                Nivel Desplante (en metros)
+              </span>
+              <input
+                id="inputPosicion"
+                type="number"
+                step="any"
+                placeholder="Posicion"
+                bind:value={inputPosicion}
+                class="input-bordered input input-sm w-full max-w-xs"
+              />
+            </label>
+					</div> -->
+          <div class="form-control">
+						<label class="input" for="inputOrigen">
+              <span class="label">
+                Archivo origen
+              </span>
+              <input
+                id="inputOrigen"
+                type="number"
+                step="any"
+                placeholder="Origen"
+                bind:value={inputOrigen}
+                class="input-bordered input input-sm w-full max-w-xs"
+              />
+            </label>
+					</div>
+          <div class="form-control">
+						<label class="input" for="inputReferencia">
+              <span class="label">
+                Referencia
+              </span>
+              <input
+                id="inputReferencia"
+                type="text"
+                placeholder="Referencia"
+                bind:value={inputReferencia}
+                class="input-bordered input input-sm w-full max-w-xs"
+              />
+            </label>
 					</div>
 					<div class="form-control">
-						<label class="label" for="inputPosicion">Nivel Desplante (en metros)</label>
-						<input
-							id="inputPosicion"
-							type="number"
-							step="any"
-							placeholder="Posicion"
-							bind:value={inputPosicion}
-							class="input-bordered input input-sm w-full max-w-xs"
-						/>
-					</div>
-					<div class="form-control">
-						<label class="label" for="inputOrigen">Origen</label>
-						<select
-							id="inputOrigen"
-							bind:value={inputOrigen}
-							class="select-bordered select input-sm w-full max-w-xs"
-						>
-							<option value="">Selecciona...</option>
-							<option value="EA">EA</option>
-							<option value="EB">EB</option>
-							<option value="EC">EC</option>
-							<option value="ED">ED</option>
-							<option value="EE">EE</option>
-							<option value="EVP">EVP</option>
-							<option value="EXT">EXT</option>
-						</select>
-					</div>
-					<div class="form-control">
-						<label class="label" for="inputReferencia">Referencia</label>
-						<input
-							id="inputReferencia"
-							type="text"
-							placeholder="Referencia"
-							bind:value={inputReferencia}
-							class="input-bordered input input-sm w-full max-w-xs"
-						/>
+						<label class="label w-1/3 text-left" for="inputUbicacion">Ubicación</label>
+						<div class="flex flex-wrap gap-2 flex-1">
+							{#each ['A','B','C','D','E','V','Casetas','PTAR','Obra exterior'] as opt}
+								<label class="inline-flex items-center gap-2">
+									<input
+										type="checkbox"
+										class="checkbox"
+										checked={Array.isArray(inputUbicacion) ? inputUbicacion.includes(opt) : false}
+										onchange={(e) => {
+											const checked = (e.currentTarget as HTMLInputElement).checked;
+											if (!Array.isArray(inputUbicacion)) inputUbicacion = [];
+											if (checked) {
+												if (!inputUbicacion.includes(opt)) inputUbicacion = [...inputUbicacion, opt];
+											} else {
+												inputUbicacion = inputUbicacion.filter((v: any) => v !== opt);
+											}
+										}}
+									/>
+									<span>{opt}</span>
+								</label>
+							{/each}
+						</div>
 					</div>
 					<div class="flex items-end gap-2">
 						<button
@@ -564,6 +626,8 @@
 			</div>
 		</div>
 
+    <div class="divider divider-info">Rellena para buscar o registrar familias de Revit</div>
+
 		<main class="z-999 mb-20">
 			<div class="mb-4 max-h-[calc(100vh-6rem-4rem)] overflow-auto">
 				<table class="table w-full">
@@ -594,7 +658,7 @@
 									class="cursor-pointer"
 									title="Click para copiar"
 									onclick={() => copyFamiliaToClipboard(familia)}
-									>{familia.nombre}-{formatNumber(familia.B)}{formatNumber(familia.H)
+									>{familia.clave}-{formatNumber(familia.B)}{formatNumber(familia.H)
 										? `x${formatNumber(familia.H)}cm`
 										: `cm`}</td
 								>
@@ -760,32 +824,39 @@
 							/>
 						</div>
 
-						<div class="form-control flex flex-row items-center gap-4">
-							<label class="label w-1/3 text-left" for="editOrigen">Origen</label>
-							<select
-								id="editOrigen"
-								bind:value={editingFamilia.edificio_modelo}
-								class="select-bordered select flex-1"
-							>
-								<option value="">Selecciona...</option>
-								<option value="EA">EA</option>
-								<option value="EB">EB</option>
-								<option value="EC">EC</option>
-								<option value="ED">ED</option>
-								<option value="EE">EE</option>
-								<option value="EVP">EVP</option>
-								<option value="EXT">EXT</option>
-							</select>
-						</div>
+            <div class="form-control flex flex-row items-center gap-4">
+              <label class="label w-1/3 text-left" for="editEdificio">Edificio</label>
+              <div class="flex flex-wrap gap-2 flex-1" id="opcionesActualizarEdificio">
+                {#each ['A','B','C','D','E','V','PTAR','Casetas','Obra exterior'] as opt}
+                  <label class="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      class="checkbox"
+                      checked={Array.isArray(editingFamilia.edificio_localiza) ? editingFamilia.edificio_localiza.includes(opt) : false}
+                      onchange={(e) => {
+                        const checked = (e.currentTarget as HTMLInputElement).checked;
+                        if (!Array.isArray(editingFamilia.edificio_localiza)) editingFamilia.edificio_localiza = [];
+                        if (checked) {
+                          if (!editingFamilia.edificio_localiza.includes(opt)) editingFamilia.edificio_localiza = [...editingFamilia.edificio_localiza, opt];
+                        } else {
+                          editingFamilia.edificio_localiza = editingFamilia.edificio_localiza.filter((v: any) => v !== opt);
+                        }
+                      }}
+                    />
+                    <span>{opt}</span>
+                  </label>
+                {/each}
+              </div>
+            </div>
 
 						<div class="form-control flex flex-row items-center gap-4">
 							<label class="label w-1/3 text-left" for="editLocaliza"
-								>Ubicación (separado por comas)</label
+								>Archivo origen</label
 							>
 							<input
 								type="text"
 								id="editLocaliza"
-								bind:value={editingFamilia.edificio_localiza}
+								bind:value={editingFamilia.edificio_modelo}
 								class="input-bordered input flex-1"
 							/>
 						</div>
