@@ -48,8 +48,11 @@
       const nombreMatch = inputNombre ? familia.nombre.toLowerCase().includes(inputNombre.toLowerCase()) : true;
       const anchoFilterActive = !(inputAncho == null || String(inputAncho).trim() === '');
       const altoFilterActive = !(inputAlto == null || String(inputAlto).trim() === '');
-      const anchoMatch = anchoFilterActive ? formatNumber(familia.B) === formatNumber(inputAncho) : true;
-      const altoMatch = altoFilterActive ? formatNumber(familia.H) === formatNumber(inputAlto) : true;
+      // Familia.B/H are stored in meters. inputAncho/inputAlto are treated as centimetros (cm)
+      // Compare by converting familia values to cm string (formatNumber) and comparing to
+      // a cm-formatted string from the input (formatCmInput).
+      const anchoMatch = anchoFilterActive ? formatNumber(familia.B) === formatCmInput(inputAncho) : true;
+      const altoMatch = altoFilterActive ? formatNumber(familia.H) === formatCmInput(inputAlto) : true;
       return categoriaMatch && nombreMatch && anchoMatch && altoMatch;
     })
   );
@@ -63,8 +66,9 @@
     const payload = {
       familia_rvt: categoriaSeleccionada, // Categoría en inglés (Revit)
       nombre,
-      B: inputAncho === '' ? null : Number(inputAncho),
-      H: inputAlto === '' ? null : Number(inputAlto),
+      // Inputs are provided in cm in the UI. Convert to meters for the database.
+      B: inputAncho === '' ? null : Number(inputAncho) / 100,
+      H: inputAlto === '' ? null : Number(inputAlto) / 100,
       nivel_desplante: inputPosicion === '' ? null : Number(inputPosicion),
       edificio_modelo: inputOrigen,
       referencia: inputReferencia,
@@ -131,6 +135,21 @@
     return number_cm.toFixed(1);
   }
 
+  /**
+   * Formatea un valor de entrada que se considera en centímetros para comparar
+   * con la salida de formatNumber (que convierte metros->cm como string).
+   * Devuelve cadena vacía para valores nulos/vacíos.
+   */
+  function formatCmInput(value: number | string | null | undefined): string {
+    if (value === null || value === undefined || String(value).trim() === '') return '';
+    const n = Number(value);
+    if (!isFinite(n) || isNaN(n)) return '';
+    if (n === 0) return '';
+    // Si es entero en cm, mostrar sin decimales, si tiene fracción mostrar 1 decimal
+    if (Math.abs(n % 1) < 1e-9) return n.toFixed(0);
+    return n.toFixed(1);
+  }
+
   function formatAsKey(value: string) {
     if (!value) return '';
     const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -168,8 +187,12 @@
 
   function openModal(familia: Familia) {
     selectedFamilia = familia;
+    // Convertir B/H/L (que vienen en metros) a centímetros para mostrarse en el modal
     editingFamilia = {
       ...familia,
+      B: familia.B !== null && familia.B !== undefined ? Number((Number(familia.B) * 100).toFixed(3)) : '',
+      H: familia.H !== null && familia.H !== undefined ? Number((Number(familia.H) * 100).toFixed(3)) : '',
+      L: familia.L !== null && familia.L !== undefined ? Number((Number(familia.L) * 100).toFixed(3)) : '',
       edificio_localiza: familia.edificio_localiza?.join(', ') ?? '',
       sistema: familia.sistema?.join(', ') ?? ''
     };
@@ -223,13 +246,14 @@
         payload.tipo = editingFamilia.tipo;
       }
       if (editingFamilia.B !== '' && editingFamilia.B !== null && editingFamilia.B !== undefined) {
-        payload.B = Number(editingFamilia.B);
+        // editingFamilia.B is shown/edited in cm in the modal — convert to meters for DB
+        payload.B = Number(editingFamilia.B) / 100;
       }
       if (editingFamilia.H !== '' && editingFamilia.H !== null && editingFamilia.H !== undefined) {
-        payload.H = Number(editingFamilia.H);
+        payload.H = Number(editingFamilia.H) / 100;
       }
       if (editingFamilia.L !== '' && editingFamilia.L !== null && editingFamilia.L !== undefined) {
-        payload.L = Number(editingFamilia.L);
+        payload.L = Number(editingFamilia.L) / 100;
       }
       if (editingFamilia.nivel_desplante !== '' && editingFamilia.nivel_desplante !== null && editingFamilia.nivel_desplante !== undefined) {
         payload.nivel_desplante = Number(editingFamilia.nivel_desplante);
@@ -407,7 +431,7 @@
         <table class="table w-full">
           <thead>
             <tr>
-              <th class="top-0 bg-base-200 z-10 w-1/4 text-left">Familia/Tipo (Click para copiar)</th>
+              <th class="top-0 bg-base-200 z-10 w-1/4 text-left">Familia Nombre (Click para copiar)</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">B (cm)</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">H (cm)</th>
               <th class="top-0 bg-base-200 z-10 w-12 text-left">Nivel desplante</th>
