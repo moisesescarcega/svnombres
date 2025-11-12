@@ -9,6 +9,6 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<main class="mx-auto w-4/5"> 
+<main class="mx-auto w-full"> 
     {@render children?.()}
 </main>
