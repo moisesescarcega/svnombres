@@ -125,7 +125,26 @@
 				? formatDimensionFromMeters(familia.L) === formatDimensionInput(inputLargo)
 				: true;
 
-			return categoriaMatch && claveMatch && anchoMatch && altoMatch && largoMatch;
+			// Ubicación: si no hay filtros seleccionados, aceptar todo.
+			// Si hay filtros, aceptar familias cuyo edificio_localiza (array) contenga
+			// al menos una de las ubicaciones seleccionadas.
+			const ubicacionMatch =
+				inputUbicacion == null || inputUbicacion.length === 0
+					? true
+					: (() => {
+						const famUb = parseArrayFromString(familia.edificio_localiza as any);
+						if (!famUb || famUb.length === 0) return false;
+						return inputUbicacion.some((sel) => famUb.includes(sel));
+					})();
+
+			return (
+				categoriaMatch &&
+				claveMatch &&
+				anchoMatch &&
+				altoMatch &&
+				largoMatch &&
+				ubicacionMatch
+			);
 		})
 	);
 
@@ -195,12 +214,16 @@
 			return;
 		}
 
+		// Normalize certain fields so the UI can rely on predictable types
 		familias = data.map((f) => ({
 			...f,
 			B: f.B ? Number(f.B) : null,
 			H: f.H ? Number(f.H) : null,
 			L: f.L ? Number(f.L) : null,
-			nivel_desplante: f.nivel_desplante ? Number(f.nivel_desplante) : null
+			nivel_desplante: f.nivel_desplante ? Number(f.nivel_desplante) : null,
+			// Ensure edificio_localiza and sistema are arrays (the DB column is a text[]; sometimes SDK returns string)
+			edificio_localiza: parseArrayFromString(f.edificio_localiza),
+			sistema: parseArrayFromString(f.sistema)
 		}));
 	});
 
