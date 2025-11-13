@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @plugin 'daisyui' {
-    themes: cupcake --default, dracula;
+    themes: cupcake --default, forest;
 };
 .container {
     max-width: 100vw;
