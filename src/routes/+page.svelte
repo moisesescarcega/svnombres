@@ -70,6 +70,7 @@
 	let inputClave = $state('');
 	let inputAncho = $state<number | ''>('');
 	let inputAlto = $state<number | ''>('');
+	let inputLargo = $state<number | ''>('');
 	let inputUbicacion = $state<string[]>([]);
 	let inputOrigen = $state('');
 	let inputReferencia = $state('');
@@ -110,6 +111,7 @@
 
 			const anchoFilterActive = inputAncho !== '' && inputAncho != null;
 			const altoFilterActive = inputAlto !== '' && inputAlto != null;
+			const largoFilterActive = inputLargo !== '' && inputLargo != null;
 
 			const anchoMatch = anchoFilterActive
 				? formatDimensionFromMeters(familia.B) === formatDimensionInput(inputAncho)
@@ -119,7 +121,11 @@
 				? formatDimensionFromMeters(familia.H) === formatDimensionInput(inputAlto)
 				: true;
 
-			return categoriaMatch && claveMatch && anchoMatch && altoMatch;
+			const largoMatch = largoFilterActive
+				? formatDimensionFromMeters(familia.L) === formatDimensionInput(inputLargo)
+				: true;
+
+			return categoriaMatch && claveMatch && anchoMatch && altoMatch && largoMatch;
 		})
 	);
 
@@ -141,6 +147,7 @@
 			clave: clave,
 			B: inputAncho === '' ? null : cmToMetros(Number(inputAncho)),
 			H: inputAlto === '' ? null : cmToMetros(Number(inputAlto)),
+			L: inputLargo === '' ? null : cmToMetros(Number(inputLargo)),
 			edificio_modelo: inputOrigen || null,
 			edificio_localiza: ubicacionArray.length > 0 ? ubicacionArray : null,
 			sistema: sistemaArray.length > 0 ? sistemaArray : null,
@@ -172,6 +179,7 @@
 		inputClave = '';
 		inputAncho = '';
 		inputAlto = '';
+		inputLargo = '';
 		inputUbicacion = [];
 		inputSistema = [];
 		inputReferencia = '';
@@ -493,7 +501,7 @@
 					</div>
 					<div class="form-control">
 						<label class="label w-1/3 text-left" for="inputUbicacion">Ubicación</label>
-						<div class="flex flex-wrap gap-2 flex-1">
+						<div class="flex flex-wrap gap-2 flex-1" id="filtroUbicacion">
 							{#each UBICACIONES_DISPONIBLES as opt}
 								<label class="inline-flex items-center gap-2">
 									<input
@@ -560,13 +568,14 @@
 					<thead>
 						<tr>
 							<th class="top-0 z-10 w-1/4 bg-base-200 text-left"
-								>Nombre sugerido (Click para copiar)</th
+								>Nombre sugerido</th
 							>
+							<th class="top-0 z-10 w-12 bg-base-200 text-left">Nombre actual</th>
 							<th class="top-0 z-10 w-12 bg-base-200 text-left">Clave</th>
 							<th class="top-0 z-10 w-12 bg-base-200 text-left">Tipo Familia</th>
 							<th class="top-0 z-10 w-12 bg-base-200 text-left">B (cm)</th>
 							<th class="top-0 z-10 w-12 bg-base-200 text-left">H (cm)</th>
-							<th class="top-0 z-10 w-12 bg-base-200 text-left">N. desplante <br /> (METROS)</th>
+							<th class="top-0 z-10 w-12 bg-base-200 text-left">L (cm)</th>
 							<th class="top-0 z-10 w-1/8 bg-base-200 text-left">Estado</th>
 							<th class="top-0 z-10 w-24 bg-base-200 text-left">Origen</th>
 							<th class="top-0 z-10 w-1/8 bg-base-200 text-left">Ubicación</th>
@@ -590,11 +599,12 @@
 										? `x${formatDimensionFromMeters(familia.H)}cm`
 										: `cm`}</td
 								>
+								<td>{familia.nombre}</td>
 								<td>{familia.clave}</td>
 								<td>{familia.familia_rvt}</td>
 								<td>{formatDimensionFromMeters(familia.B)}</td>
 								<td>{formatDimensionFromMeters(familia.H)}</td>
-								<td>{familia.nivel_desplante}</td>
+								<td>{formatDimensionFromMeters(familia.L)}</td>
 								<td>{familia.estado}</td>
 								<td>{familia.edificio_modelo}</td>
 								<td>{familia.edificio_localiza?.join(', ')}</td>
@@ -661,6 +671,16 @@
 					}}
 				>
 					<div class="space-y-4">
+						<div class="form-control flex flex-row items-center gap-4">
+							<label class="label w-1/3 text-left" for="editNombre">Nombre</label>
+							<input
+								type="text"
+								id="editNombre"
+								bind:value={editingFamilia.nombre}
+								class="input-bordered input flex-1"
+							/>
+						</div>
+
 						<div class="form-control flex flex-row items-center gap-4">
 							<label class="label w-1/3 text-left" for="editClave">Clave</label>
 							<input
